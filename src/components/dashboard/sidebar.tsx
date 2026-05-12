@@ -15,6 +15,7 @@ import {
   Settings,
   BarChart3,
   GitBranch,
+  UserCog,
 } from 'lucide-react'
 
 const navigation = [
@@ -27,6 +28,7 @@ const navigation = [
   { name: 'Invoices', href: '/dashboard/invoices', icon: Receipt },
   { name: 'Payments', href: '/dashboard/payments', icon: CreditCard },
   { name: 'Reports', href: '/dashboard/reports', icon: BarChart3 },
+  { name: 'User Management', href: '/dashboard/users', icon: UserCog, adminOnly: true },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
 

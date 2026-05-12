@@ -4,26 +4,35 @@ import { Input } from '@/components/ui/input'
 import Image from 'next/image'
 import { getCompanies } from '@/app/actions/companies'
 import { redirect } from 'next/navigation'
+import { login } from '@/lib/auth'
 
 async function handleLogin(formData: FormData) {
   'use server'
   
-  const username = formData.get('username') as string
+  const email = formData.get('email') as string
   const password = formData.get('password') as string
   const companyId = formData.get('companyId') as string
   
-  // TODO: Add proper authentication here
-  // For now, just redirect to dashboard with company filter
-  if (username && password) {
-    if (companyId) {
-      redirect(`/dashboard?companyId=${companyId}`)
+  const user = await login(email, password, companyId)
+  
+  if (user) {
+    if (user.role === 'SUPER_ADMIN') {
+      redirect('/dashboard')
+    } else if (user.companyId) {
+      redirect(`/dashboard?companyId=${user.companyId}`)
     } else {
       redirect('/dashboard')
     }
+  } else {
+    redirect('/login?error=invalid')
   }
 }
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: { error?: string }
+}) {
   const companies = await getCompanies()
 
   return (
@@ -48,18 +57,25 @@ export default async function LoginPage() {
           </div>
         </CardHeader>
         <CardContent>
+          {searchParams.error === 'invalid' && (
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+              <p className="text-sm text-red-600 dark:text-red-400">
+                Invalid email or password. Please try again.
+              </p>
+            </div>
+          )}
           <form action={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <label htmlFor="username" className="text-sm font-medium">
-                Username
+              <label htmlFor="email" className="text-sm font-medium">
+                Email Address
               </label>
               <Input
-                id="username"
-                name="username"
-                type="text"
-                placeholder="Enter your username"
+                id="email"
+                name="email"
+                type="email"
+                placeholder="Enter your email"
                 required
-                autoComplete="username"
+                autoComplete="email"
               />
             </div>
 
@@ -102,8 +118,9 @@ export default async function LoginPage() {
               Sign In
             </Button>
 
-            <div className="text-center text-sm text-muted-foreground">
-              <p>Demo credentials: Any username/password will work</p>
+            <div className="text-center text-sm text-muted-foreground space-y-1">
+              <p className="font-medium">Super Admin:</p>
+              <p>kevin@aibridgesolutions.co.uk</p>
             </div>
           </form>
         </CardContent>
