@@ -82,11 +82,23 @@ export default function NewCompanyPage() {
                 <label htmlFor="industry" className="text-sm font-medium">
                   Industry
                 </label>
-                <Input
+                <select
                   id="industry"
                   name="industry"
-                  placeholder="e.g., Construction, IT, Healthcare"
-                />
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="">Select industry...</option>
+                  <option value="Construction">Construction</option>
+                  <option value="Agriculture">Agriculture</option>
+                  <option value="Healthcare">Healthcare</option>
+                  <option value="Hospitality">Hospitality</option>
+                  <option value="IT & Technology">IT & Technology</option>
+                  <option value="Manufacturing">Manufacturing</option>
+                  <option value="Retail">Retail</option>
+                  <option value="Transportation">Transportation</option>
+                  <option value="Warehousing">Warehousing</option>
+                  <option value="Other">Other</option>
+                </select>
               </div>
             </div>
 

@@ -25,13 +25,30 @@ export default async function NewWorkerPage() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Worker Details</CardTitle>
-          <CardDescription>Enter the information for the new worker</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form action={createWorker} className="space-y-6">
+      {companies.length === 0 ? (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center py-8">
+              <p className="text-lg font-medium">No companies available</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                You need to create a company first before adding workers
+              </p>
+              <Link href="/dashboard/companies/new">
+                <Button className="mt-4">
+                  Create Company
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Worker Details</CardTitle>
+            <CardDescription>Enter the information for the new worker</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form action={createWorker} className="space-y-6">
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-2">
                 <label htmlFor="firstName" className="text-sm font-medium">
@@ -125,6 +142,7 @@ export default async function NewWorkerPage() {
           </form>
         </CardContent>
       </Card>
+      )}
     </div>
   )
 }
