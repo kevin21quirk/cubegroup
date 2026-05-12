@@ -80,7 +80,7 @@ export default function EmailsPage() {
                 Connect Gmail Account
               </Button>
               <div className="text-xs text-muted-foreground">
-                <p>You'll need to configure:</p>
+                <p>You&apos;ll need to configure:</p>
                 <ul className="mt-2 space-y-1">
                   <li>• Google Cloud Console OAuth credentials</li>
                   <li>• Gmail API access</li>
