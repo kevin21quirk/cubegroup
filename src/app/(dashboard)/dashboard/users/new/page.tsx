@@ -98,23 +98,20 @@ export default async function NewUserPage() {
                 >
                   <option value="">Select role...</option>
                   <option value="SUPER_ADMIN">Super Admin - Full system access</option>
-                  <option value="CUBE_ADMIN">Cube Admin - Administrative access</option>
-                  <option value="PAYROLL_OPERATOR">Payroll Operator - Process payroll</option>
-                  <option value="FINANCE_USER">Finance User - View financials</option>
-                  <option value="READ_ONLY">Read Only - View only access</option>
+                  <option value="STAFF">Staff - Company-specific access</option>
                 </select>
               </div>
 
               <div className="space-y-2">
                 <label htmlFor="companyId" className="text-sm font-medium">
-                  Assigned Company (Optional)
+                  Default Company (Optional)
                 </label>
                 <select
                   id="companyId"
                   name="companyId"
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <option value="">No specific company (All access)</option>
+                  <option value="">No default (user selects at login)</option>
                   {companies.map((company) => (
                     <option key={company.id} value={company.id}>
                       {company.name}
@@ -122,7 +119,7 @@ export default async function NewUserPage() {
                   ))}
                 </select>
                 <p className="text-xs text-muted-foreground">
-                  If assigned, user will only see data for this company
+                  Staff users select a company at login. This sets their default.
                 </p>
               </div>
             </div>

@@ -9,7 +9,7 @@ export async function createUser(formData: FormData) {
   const lastName = formData.get('lastName') as string
   const email = formData.get('email') as string
   const password = formData.get('password') as string
-  const role = formData.get('role') as 'SUPER_ADMIN' | 'CUBE_ADMIN' | 'PAYROLL_OPERATOR' | 'FINANCE_USER' | 'READ_ONLY'
+  const role = formData.get('role') as 'SUPER_ADMIN' | 'STAFF'
   const companyId = formData.get('companyId') as string
 
   if (!firstName || !lastName || !email || !password || !role) {
@@ -53,7 +53,7 @@ export async function updateUser(id: string, formData: FormData) {
   const firstName = formData.get('firstName') as string
   const lastName = formData.get('lastName') as string
   const email = formData.get('email') as string
-  const role = formData.get('role') as 'SUPER_ADMIN' | 'CUBE_ADMIN' | 'PAYROLL_OPERATOR' | 'FINANCE_USER' | 'READ_ONLY'
+  const role = formData.get('role') as 'SUPER_ADMIN' | 'STAFF'
   const companyId = formData.get('companyId') as string
   const password = formData.get('password') as string
 

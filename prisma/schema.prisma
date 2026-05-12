@@ -9,10 +9,7 @@ datasource db {
 
 enum UserRole {
   SUPER_ADMIN
-  CUBE_ADMIN
-  PAYROLL_OPERATOR
-  FINANCE_USER
-  READ_ONLY
+  STAFF
 }
 
 enum WorkflowState {
@@ -65,7 +62,7 @@ model User {
   firstName         String?
   lastName          String?
   password          String?
-  role              UserRole            @default(READ_ONLY)
+  role              UserRole            @default(STAFF)
   companyId         String?
   company           Company?            @relation("UserCompany", fields: [companyId], references: [id])
   isActive          Boolean             @default(true)

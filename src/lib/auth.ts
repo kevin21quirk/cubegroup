@@ -2,7 +2,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { prisma } from './prisma'
 
-export type UserRole = 'SUPER_ADMIN' | 'CUBE_ADMIN' | 'PAYROLL_OPERATOR' | 'FINANCE_USER' | 'READ_ONLY'
+export type UserRole = 'SUPER_ADMIN' | 'STAFF'
 
 export interface User {
   email: string
