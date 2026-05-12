@@ -38,7 +38,7 @@ export async function recordPayment(formData: FormData) {
       where: { id: invoiceId },
       data: {
         paymentStatus,
-        paidDate: paymentStatus === 'PAID' ? new Date() : null,
+        paidAt: paymentStatus === 'PAID' ? new Date() : null,
       },
     })
   }

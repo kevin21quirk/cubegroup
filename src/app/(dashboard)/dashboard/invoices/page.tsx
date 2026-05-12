@@ -11,7 +11,7 @@ export default async function InvoicesPage() {
   
   const totalInvoices = invoices.length
   const unpaidAmount = invoices.filter(i => i.paymentStatus === 'UNPAID').reduce((sum, i) => sum + i.totalAmount, 0)
-  const paidThisMonth = invoices.filter(i => i.paymentStatus === 'PAID' && i.paidDate && new Date(i.paidDate).getMonth() === new Date().getMonth()).reduce((sum, i) => sum + i.totalAmount, 0)
+  const paidThisMonth = invoices.filter(i => i.paymentStatus === 'PAID' && i.paidAt && new Date(i.paidAt).getMonth() === new Date().getMonth()).reduce((sum, i) => sum + i.totalAmount, 0)
   const totalRevenue = invoices.reduce((sum, i) => sum + i.totalAmount, 0)
   return (
     <div className="space-y-6">

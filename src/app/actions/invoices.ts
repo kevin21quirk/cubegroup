@@ -66,7 +66,7 @@ export async function markInvoiceAsPaid(id: string) {
     where: { id },
     data: {
       paymentStatus: 'PAID',
-      paidDate: new Date(),
+      paidAt: new Date(),
     },
   })
 
