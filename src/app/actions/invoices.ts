@@ -9,7 +9,7 @@ export async function createInvoice(formData: FormData) {
   const payrollSubmissionId = formData.get('payrollSubmissionId') as string
   const invoiceNumber = formData.get('invoiceNumber') as string
   const totalAmount = parseFloat(formData.get('totalAmount') as string)
-  const invoiceType = formData.get('invoiceType') as 'CLIENT' | 'UMBRELLA'
+  const invoiceType = formData.get('invoiceType') as 'CLIENT_INVOICE' | 'UMBRELLA_INVOICE'
 
   if (!companyId || !invoiceNumber || !totalAmount || !invoiceType) {
     throw new Error('All fields are required')
