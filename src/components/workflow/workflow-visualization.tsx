@@ -108,14 +108,14 @@ export function WorkflowVisualization({ companyName, steps }: WorkflowVisualizat
 }
 
 // Default workflow steps
-export function getDefaultWorkflowSteps() {
+export function getDefaultWorkflowSteps(): WorkflowStep[] {
   return [
     {
       id: 'email',
       title: 'Email Received',
       description: 'Timesheet email arrives',
       icon: <Mail className="h-5 w-5" />,
-      status: 'pending' as const,
+      status: 'pending',
       count: 0,
     },
     {
@@ -123,7 +123,7 @@ export function getDefaultWorkflowSteps() {
       title: 'Timesheet Processed',
       description: 'Workers & hours extracted',
       icon: <FileText className="h-5 w-5" />,
-      status: 'pending' as const,
+      status: 'pending',
       count: 0,
     },
     {
@@ -131,7 +131,7 @@ export function getDefaultWorkflowSteps() {
       title: 'Validation',
       description: 'Data verified',
       icon: <CheckSquare className="h-5 w-5" />,
-      status: 'pending' as const,
+      status: 'pending',
       count: 0,
     },
     {
@@ -139,7 +139,7 @@ export function getDefaultWorkflowSteps() {
       title: 'Invoice Generated',
       description: 'Client invoice created',
       icon: <Receipt className="h-5 w-5" />,
-      status: 'pending' as const,
+      status: 'pending',
       count: 0,
     },
     {
@@ -147,7 +147,7 @@ export function getDefaultWorkflowSteps() {
       title: 'Payment',
       description: 'Invoice paid',
       icon: <DollarSign className="h-5 w-5" />,
-      status: 'pending' as const,
+      status: 'pending',
       count: 0,
     },
   ]
