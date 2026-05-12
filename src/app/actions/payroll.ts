@@ -54,7 +54,7 @@ export async function getPayrollSubmission(id: string) {
           worker: true,
         },
       },
-      invoice: true,
+      invoices: true,
     },
   })
 }
