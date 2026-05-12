@@ -29,8 +29,16 @@ const allNavigation = [
 ]
 
 export async function Sidebar() {
-  const user = await getSession()
-  const isSuperAdmin = user?.role === 'SUPER_ADMIN'
+  let isSuperAdmin = false
+  
+  try {
+    const user = await getSession()
+    isSuperAdmin = user?.role === 'SUPER_ADMIN'
+  } catch (error) {
+    console.error('Error getting session in sidebar:', error)
+    // Default to non-admin if session fails
+    isSuperAdmin = false
+  }
   
   // Filter navigation based on role
   const navigation = allNavigation.filter(item => 
