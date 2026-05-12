@@ -27,20 +27,20 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
     const updateUserWithId = updateUser.bind(null, id)
   
     return (
-    <d  iv className="space-y-6">
+      <div className="space-y-6">
         <div className="flex items-center gap-4">
-        <L  ink href="/dashboard/users">
+          <Link href="/dashboard/users">
             <Button variant="ghost" size="icon">
               <ArrowLeft className="h-4 w-4" />
             </Button>
-        </Link>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Edit User</h1>
-          <p className="text-muted-foreground">
-            Update user information and permissions
-          </p>
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Edit User</h1>
+            <p className="text-muted-foreground">
+              Update user information and permissions
+            </p>
+          </div>
         </div>
-      </div>
 
       <Card>
         <CardHeader>
