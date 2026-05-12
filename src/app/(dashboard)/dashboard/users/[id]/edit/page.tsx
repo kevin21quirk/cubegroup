@@ -54,7 +54,7 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
                 <Input
                   id="firstName"
                   name="firstName"
-                  defaultValue={user.firstName}
+                  defaultValue={user.firstName || ''}
                   placeholder="John"
                   required
                 />
@@ -67,7 +67,7 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
                 <Input
                   id="lastName"
                   name="lastName"
-                  defaultValue={user.lastName}
+                  defaultValue={user.lastName || ''}
                   placeholder="Doe"
                   required
                 />
@@ -81,7 +81,7 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
                   id="email"
                   name="email"
                   type="email"
-                  defaultValue={user.email}
+                  defaultValue={user.email || ''}
                   placeholder="john.doe@example.com"
                   required
                 />
