@@ -17,11 +17,19 @@ async function handleLogin(formData: FormData) {
   
   if (user) {
     if (user.role === 'SUPER_ADMIN') {
-      redirect('/dashboard')
-    } else if (user.companyId) {
-      redirect(`/dashboard?companyId=${user.companyId}`)
+      // Super admin can see everything or filter by company
+      if (user.companyId) {
+        redirect(`/dashboard?companyId=${user.companyId}`)
+      } else {
+        redirect('/dashboard')
+      }
     } else {
-      redirect('/dashboard')
+      // Staff must have a company selected
+      if (user.companyId) {
+        redirect(`/dashboard?companyId=${user.companyId}`)
+      } else {
+        redirect('/login?error=nocompany')
+      }
     }
   } else {
     redirect('/login?error=invalid')
@@ -64,6 +72,13 @@ export default async function LoginPage({
               </p>
             </div>
           )}
+          {searchParams.error === 'nocompany' && (
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+              <p className="text-sm text-red-600 dark:text-red-400">
+                Please select a company to continue.
+              </p>
+            </div>
+          )}
           <form action={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <label htmlFor="email" className="text-sm font-medium">
@@ -95,14 +110,15 @@ export default async function LoginPage({
 
             <div className="space-y-2">
               <label htmlFor="companyId" className="text-sm font-medium">
-                Company (Optional)
+                Company *
               </label>
               <select
                 id="companyId"
                 name="companyId"
+                required
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <option value="">All Companies (Admin View)</option>
+                <option value="">Select a company...</option>
                 {companies.map((company) => (
                   <option key={company.id} value={company.id}>
                     {company.name}
@@ -110,18 +126,13 @@ export default async function LoginPage({
                 ))}
               </select>
               <p className="text-xs text-muted-foreground">
-                Select a specific company to view only their data
+                Staff must select a company. Super admins see all data.
               </p>
             </div>
 
             <Button type="submit" className="w-full">
               Sign In
             </Button>
-
-            <div className="text-center text-sm text-muted-foreground space-y-1">
-              <p className="font-medium">Super Admin:</p>
-              <p>kevin@aibridgesolutions.co.uk</p>
-            </div>
           </form>
         </CardContent>
       </Card>
