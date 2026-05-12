@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+import { prisma } from './prisma'
 
 export type UserRole = 'SUPER_ADMIN' | 'CUBE_ADMIN' | 'PAYROLL_OPERATOR' | 'FINANCE_USER' | 'READ_ONLY'
 
@@ -10,7 +11,7 @@ export interface User {
   name: string
 }
 
-// Super admin credentials
+// Super admin credentials (hardcoded)
 const SUPER_ADMIN = {
   email: 'kevin@aibridgesolutions.co.uk',
   password: 'a15Dz6fl!',
@@ -18,31 +19,31 @@ const SUPER_ADMIN = {
   role: 'SUPER_ADMIN' as const,
 }
 
-// Simple user store (in production, this would be in database)
-const USERS: Record<string, { password: string; name: string; role: UserRole; companyId?: string }> = {
-  // Add more users here as needed
-}
-
 export async function login(email: string, password: string, companyId?: string): Promise<User | null> {
-  // Check super admin
+  // Check super admin (hardcoded)
   if (email === SUPER_ADMIN.email && password === SUPER_ADMIN.password) {
     const user: User = {
       email: SUPER_ADMIN.email,
       name: SUPER_ADMIN.name,
       role: SUPER_ADMIN.role,
+      companyId: companyId || undefined, // Super admin can select a company or see all
     }
     await setSession(user)
     return user
   }
 
-  // Check regular users
-  const user = USERS[email]
-  if (user && user.password === password) {
+  // Check database users
+  const dbUser = await prisma.user.findUnique({
+    where: { email },
+  })
+
+  if (dbUser && dbUser.password === password && dbUser.isActive) {
     const userData: User = {
-      email,
-      name: user.name,
-      role: user.role,
-      companyId: companyId || user.companyId,
+      email: dbUser.email,
+      name: `${dbUser.firstName || ''} ${dbUser.lastName || ''}`.trim() || dbUser.email,
+      role: dbUser.role,
+      // Use selected company if provided, otherwise use assigned company
+      companyId: companyId || dbUser.companyId || undefined,
     }
     await setSession(userData)
     return userData

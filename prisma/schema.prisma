@@ -60,7 +60,7 @@ enum InvoiceType {
 
 model User {
   id                String              @id @default(cuid())
-  clerkId           String              @unique
+  clerkId           String?             @unique
   email             String              @unique
   firstName         String?
   lastName          String?
