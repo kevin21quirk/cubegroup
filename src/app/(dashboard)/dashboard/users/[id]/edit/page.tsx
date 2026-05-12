@@ -14,14 +14,16 @@ interface EditUserPageProps {
 
 export default async function EditUserPage({ params }: EditUserPageProps) {
   await requireSuperAdmin()
-  const user = await getUser(params.id)
-  const companies = await getCompanies()
   
-  if (!user) {
-    notFound()
-  }
+  try {
+    const user = await getUser(params.id)
+    const companies = await getCompanies()
+    
+    if (!user) {
+      notFound()
+    }
 
-  const updateUserWithId = updateUser.bind(null, params.id)
+    const updateUserWithId = updateUser.bind(null, params.id)
 
   return (
     <div className="space-y-6">
@@ -157,4 +159,8 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
       </Card>
     </div>
   )
+  } catch (error) {
+    console.error('Error loading user:', error)
+    notFound()
+  }
 }
