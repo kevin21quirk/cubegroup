@@ -1,0 +1,486 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  CUBE_ADMIN
+  PAYROLL_OPERATOR
+  FINANCE_USER
+  READ_ONLY
+}
+
+enum WorkflowState {
+  EMAIL_RECEIVED
+  PROCESSING
+  AWAITING_VALIDATION
+  READY_FOR_INVOICE
+  INVOICE_SENT
+  AWAITING_PAYMENT
+  PAYMENT_RECEIVED
+  UMBRELLA_INVOICE_SENT
+  COMPLETED
+  FAILED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PARTIAL
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  OVERDUE
+}
+
+enum DocumentType {
+  PDF
+  DOCX
+  XLSX
+  CSV
+  IMAGE
+  OTHER
+}
+
+enum InvoiceType {
+  CLIENT_INVOICE
+  UMBRELLA_INVOICE
+}
+
+model User {
+  id                String              @id @default(cuid())
+  clerkId           String              @unique
+  email             String              @unique
+  firstName         String?
+  lastName          String?
+  role              UserRole            @default(READ_ONLY)
+  isActive          Boolean             @default(true)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  auditLogs         AuditLog[]
+  notes             Note[]
+  activities        Activity[]
+  assignedTasks     Task[]
+  createdCompanies  Company[]           @relation("CreatedBy")
+  
+  @@index([clerkId])
+  @@index([email])
+  @@index([role])
+}
+
+model Company {
+  id                    String                @id @default(cuid())
+  name                  String
+  registrationNumber    String?               @unique
+  vatNumber             String?
+  industry              String?
+  billingAddress        String?
+  billingPostcode       String?
+  billingCity           String?
+  billingCountry        String                @default("United Kingdom")
+  paymentTerms          Int                   @default(30)
+  payrollFrequency      String                @default("Weekly")
+  isActive              Boolean               @default(true)
+  onboardingStatus      String                @default("Pending")
+  riskNotes             String?
+  complianceNotes       String?
+  createdById           String
+  createdBy             User                  @relation("CreatedBy", fields: [createdById], references: [id])
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  umbrellaCompanyId     String?
+  umbrellaCompany       UmbrellaCompany?      @relation(fields: [umbrellaCompanyId], references: [id])
+  
+  contacts              CompanyContact[]
+  workers               Worker[]
+  payrollSubmissions    PayrollSubmission[]
+  invoices              Invoice[]
+  feeStructures         FeeStructure[]
+  documents             Document[]
+  notes                 Note[]
+  activities            Activity[]
+  
+  @@index([name])
+  @@index([isActive])
+  @@index([umbrellaCompanyId])
+}
+
+model CompanyContact {
+  id              String    @id @default(cuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  firstName       String
+  lastName        String
+  email           String
+  phone           String?
+  position        String?
+  isPrimary       Boolean   @default(false)
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([companyId])
+  @@index([email])
+}
+
+model UmbrellaCompany {
+  id                    String                @id @default(cuid())
+  name                  String                @unique
+  registrationNumber    String?
+  contactEmail          String
+  contactPhone          String?
+  address               String?
+  postcode              String?
+  city                  String?
+  country               String                @default("United Kingdom")
+  processingFee         Float                 @default(0)
+  isActive              Boolean               @default(true)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  companies             Company[]
+  payrollEntries        PayrollEntry[]
+  invoices              Invoice[]
+  
+  @@index([name])
+  @@index([isActive])
+}
+
+model Worker {
+  id                String          @id @default(cuid())
+  companyId         String
+  company           Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  firstName         String
+  lastName          String
+  email             String?
+  phone             String?
+  nationalInsurance String?
+  employeeNumber    String?
+  department        String?
+  isActive          Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  
+  payrollEntries    PayrollEntry[]
+  
+  @@unique([companyId, email])
+  @@index([companyId])
+  @@index([lastName, firstName])
+}
+
+model PayrollSubmission {
+  id                String          @id @default(cuid())
+  companyId         String
+  company           Company         @relation(fields: [companyId], references: [id])
+  emailImportId     String?         @unique
+  emailImport       EmailImport?    @relation(fields: [emailImportId], references: [id])
+  payrollWeek       String
+  payrollWeekStart  DateTime?
+  payrollWeekEnd    DateTime?
+  workflowState     WorkflowState   @default(EMAIL_RECEIVED)
+  totalHours        Float           @default(0)
+  totalGrossPay     Float           @default(0)
+  totalCubeFees     Float           @default(0)
+  totalUmbrellaFees Float           @default(0)
+  validationErrors  Json?
+  processingNotes   String?
+  processedAt       DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  
+  payrollEntries    PayrollEntry[]
+  documents         Document[]
+  invoices          Invoice[]
+  tasks             Task[]
+  notes             Note[]
+  activities        Activity[]
+  
+  @@index([companyId])
+  @@index([workflowState])
+  @@index([payrollWeek])
+  @@index([createdAt])
+}
+
+model PayrollEntry {
+  id                    String              @id @default(cuid())
+  payrollSubmissionId   String
+  payrollSubmission     PayrollSubmission   @relation(fields: [payrollSubmissionId], references: [id], onDelete: Cascade)
+  workerId              String?
+  worker                Worker?             @relation(fields: [workerId], references: [id])
+  umbrellaCompanyId     String?
+  umbrellaCompany       UmbrellaCompany?    @relation(fields: [umbrellaCompanyId], references: [id])
+  
+  workerName            String
+  hoursWorked           Float
+  hourlyRate            Float
+  grossPay              Float
+  cubeFee               Float               @default(0)
+  umbrellaFee           Float               @default(0)
+  netToWorker           Float               @default(0)
+  department            String?
+  projectSite           String?
+  payrollWeek           String
+  notes                 String?
+  rawData               Json?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  
+  @@index([payrollSubmissionId])
+  @@index([workerId])
+  @@index([payrollWeek])
+}
+
+model Invoice {
+  id                    String              @id @default(cuid())
+  invoiceNumber         String              @unique
+  invoiceType           InvoiceType
+  companyId             String?
+  company               Company?            @relation(fields: [companyId], references: [id])
+  umbrellaCompanyId     String?
+  umbrellaCompany       UmbrellaCompany?    @relation(fields: [umbrellaCompanyId], references: [id])
+  payrollSubmissionId   String?
+  payrollSubmission     PayrollSubmission?  @relation(fields: [payrollSubmissionId], references: [id])
+  
+  issueDate             DateTime            @default(now())
+  dueDate               DateTime
+  subtotal              Float
+  vatAmount             Float               @default(0)
+  vatRate               Float               @default(20)
+  totalAmount           Float
+  paidAmount            Float               @default(0)
+  status                InvoiceStatus       @default(DRAFT)
+  paymentStatus         PaymentStatus       @default(UNPAID)
+  
+  billingName           String
+  billingAddress        String?
+  billingPostcode       String?
+  billingCity           String?
+  billingCountry        String              @default("United Kingdom")
+  
+  notes                 String?
+  termsAndConditions    String?
+  pdfUrl                String?
+  sentAt                DateTime?
+  paidAt                DateTime?
+  
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  
+  items                 InvoiceItem[]
+  payments              Payment[]
+  documents             Document[]
+  
+  @@index([invoiceNumber])
+  @@index([companyId])
+  @@index([umbrellaCompanyId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([issueDate])
+}
+
+model InvoiceItem {
+  id              String    @id @default(cuid())
+  invoiceId       String
+  invoice         Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description     String
+  quantity        Float     @default(1)
+  unitPrice       Float
+  vatRate         Float     @default(20)
+  amount          Float
+  createdAt       DateTime  @default(now())
+  
+  @@index([invoiceId])
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  invoiceId       String
+  invoice         Invoice       @relation(fields: [invoiceId], references: [id])
+  amount          Float
+  paymentDate     DateTime
+  paymentMethod   String?
+  reference       String?
+  notes           String?
+  bankReference   String?
+  reconciled      Boolean       @default(false)
+  reconciledAt    DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@index([invoiceId])
+  @@index([paymentDate])
+  @@index([reconciled])
+}
+
+model FeeStructure {
+  id              String    @id @default(cuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  feeType         String
+  feeAmount       Float
+  feePercentage   Float?
+  isActive        Boolean   @default(true)
+  effectiveFrom   DateTime  @default(now())
+  effectiveTo     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([companyId])
+  @@index([isActive])
+}
+
+model Document {
+  id                    String              @id @default(cuid())
+  filename              String
+  originalFilename      String
+  fileSize              Int
+  mimeType              String
+  documentType          DocumentType
+  storageUrl            String
+  storagePath           String
+  
+  companyId             String?
+  company               Company?            @relation(fields: [companyId], references: [id])
+  payrollSubmissionId   String?
+  payrollSubmission     PayrollSubmission?  @relation(fields: [payrollSubmissionId], references: [id])
+  invoiceId             String?
+  invoice               Invoice?            @relation(fields: [invoiceId], references: [id])
+  
+  extractedText         String?
+  metadata              Json?
+  isProcessed           Boolean             @default(false)
+  processedAt           DateTime?
+  uploadedAt            DateTime            @default(now())
+  
+  @@index([companyId])
+  @@index([payrollSubmissionId])
+  @@index([invoiceId])
+  @@index([documentType])
+}
+
+model EmailImport {
+  id                String              @id @default(cuid())
+  messageId         String              @unique
+  threadId          String?
+  from              String
+  to                String
+  subject           String
+  bodyText          String?
+  bodyHtml          String?
+  receivedAt        DateTime
+  hasAttachments    Boolean             @default(false)
+  attachmentCount   Int                 @default(0)
+  isProcessed       Boolean             @default(false)
+  processedAt       DateTime?
+  detectedCompany   String?
+  detectedWeek      String?
+  metadata          Json?
+  createdAt         DateTime            @default(now())
+  
+  payrollSubmission PayrollSubmission?
+  
+  @@index([messageId])
+  @@index([from])
+  @@index([receivedAt])
+  @@index([isProcessed])
+}
+
+model Task {
+  id                    String              @id @default(cuid())
+  title                 String
+  description           String?
+  priority              String              @default("Medium")
+  status                String              @default("Pending")
+  dueDate               DateTime?
+  assignedToId          String?
+  assignedTo            User?               @relation(fields: [assignedToId], references: [id])
+  payrollSubmissionId   String?
+  payrollSubmission     PayrollSubmission?  @relation(fields: [payrollSubmissionId], references: [id])
+  completedAt           DateTime?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  
+  @@index([assignedToId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+model Note {
+  id                    String              @id @default(cuid())
+  content               String
+  companyId             String?
+  company               Company?            @relation(fields: [companyId], references: [id])
+  payrollSubmissionId   String?
+  payrollSubmission     PayrollSubmission?  @relation(fields: [payrollSubmissionId], references: [id])
+  createdById           String
+  createdBy             User                @relation(fields: [createdById], references: [id])
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  
+  @@index([companyId])
+  @@index([payrollSubmissionId])
+  @@index([createdById])
+}
+
+model Activity {
+  id                    String              @id @default(cuid())
+  action                String
+  description           String
+  entityType            String?
+  entityId              String?
+  metadata              Json?
+  companyId             String?
+  company               Company?            @relation(fields: [companyId], references: [id])
+  payrollSubmissionId   String?
+  payrollSubmission     PayrollSubmission?  @relation(fields: [payrollSubmissionId], references: [id])
+  userId                String
+  user                  User                @relation(fields: [userId], references: [id])
+  createdAt             DateTime            @default(now())
+  
+  @@index([userId])
+  @@index([companyId])
+  @@index([payrollSubmissionId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  action          String
+  entityType      String
+  entityId        String
+  changes         Json?
+  ipAddress       String?
+  userAgent       String?
+  createdAt       DateTime  @default(now())
+  
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model SystemConfig {
+  id              String    @id @default(cuid())
+  key             String    @unique
+  value           String
+  description     String?
+  isEncrypted     Boolean   @default(false)
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([key])
+}
