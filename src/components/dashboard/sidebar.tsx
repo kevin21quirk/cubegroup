@@ -1,6 +1,3 @@
-import Link from 'next/link'
-import Image from 'next/image'
-import { cn } from '@/lib/utils'
 import {
   LayoutDashboard,
   Building2,
@@ -13,13 +10,11 @@ import {
   BarChart3,
   GitBranch,
   UserCog,
-  LogOut,
 } from 'lucide-react'
-import { handleLogout } from '@/app/actions/auth'
 import { getSession } from '@/lib/auth'
 import { SidebarClient } from './sidebar-client'
 
-const navigation = [
+const allNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Workflow', href: '/dashboard/workflow', icon: GitBranch },
   { name: 'Companies', href: '/dashboard/companies', icon: Building2 },
@@ -38,9 +33,9 @@ export async function Sidebar() {
   const isSuperAdmin = user?.role === 'SUPER_ADMIN'
   
   // Filter navigation based on role
-  const filteredNavigation = navigation.filter(item => 
+  const navigation = allNavigation.filter(item => 
     !item.adminOnly || isSuperAdmin
   )
 
-  return <SidebarClient navigation={filteredNavigation} />
+  return <SidebarClient navigation={navigation} />
 }
