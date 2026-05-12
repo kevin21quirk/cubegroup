@@ -68,13 +68,24 @@ export default function NewCompanyPage() {
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="address" className="text-sm font-medium">
-                  Address
+                <label htmlFor="billingAddress" className="text-sm font-medium">
+                  Billing Address
                 </label>
                 <Input
-                  id="address"
-                  name="address"
+                  id="billingAddress"
+                  name="billingAddress"
                   placeholder="123 Business St, London"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="industry" className="text-sm font-medium">
+                  Industry
+                </label>
+                <Input
+                  id="industry"
+                  name="industry"
+                  placeholder="e.g., Construction, IT, Healthcare"
                 />
               </div>
             </div>

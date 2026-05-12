@@ -67,22 +67,22 @@ export default async function CompaniesPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {company.email && (
+                  {company.contacts[0]?.email && (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Mail className="h-4 w-4" />
-                      <span className="truncate">{company.email}</span>
+                      <span className="truncate">{company.contacts[0].email}</span>
                     </div>
                   )}
-                  {company.phone && (
+                  {company.contacts[0]?.phone && (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Phone className="h-4 w-4" />
-                      <span>{company.phone}</span>
+                      <span>{company.contacts[0].phone}</span>
                     </div>
                   )}
-                  {company.address && (
+                  {company.billingAddress && (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <MapPin className="h-4 w-4" />
-                      <span className="truncate">{company.address}</span>
+                      <span className="truncate">{company.billingAddress}</span>
                     </div>
                   )}
                   <div className="pt-3 border-t grid grid-cols-2 gap-4">

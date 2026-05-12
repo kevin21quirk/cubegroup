@@ -71,7 +71,7 @@ export class WorkflowEngine {
     ])
   }
 
-  async getNextState(currentState: WorkflowState): WorkflowState | null {
+  async getNextState(currentState: WorkflowState): Promise<WorkflowState | null> {
     const transitions = this.validTransitions.get(currentState)
     if (!transitions || transitions.length === 0) {
       return null

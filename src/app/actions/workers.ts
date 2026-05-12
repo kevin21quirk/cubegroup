@@ -10,7 +10,7 @@ export async function createWorker(formData: FormData) {
   const email = formData.get('email') as string
   const phone = formData.get('phone') as string
   const companyId = formData.get('companyId') as string
-  const niNumber = formData.get('niNumber') as string
+  const nationalInsurance = formData.get('nationalInsurance') as string
 
   if (!firstName || !lastName || !companyId) {
     throw new Error('First name, last name, and company are required')
@@ -23,7 +23,7 @@ export async function createWorker(formData: FormData) {
       email,
       phone,
       companyId,
-      niNumber,
+      nationalInsurance,
       isActive: true,
     },
   })
@@ -67,7 +67,7 @@ export async function updateWorker(id: string, formData: FormData) {
   const lastName = formData.get('lastName') as string
   const email = formData.get('email') as string
   const phone = formData.get('phone') as string
-  const niNumber = formData.get('niNumber') as string
+  const nationalInsurance = formData.get('nationalInsurance') as string
   const isActive = formData.get('isActive') === 'true'
 
   await prisma.worker.update({
@@ -77,7 +77,7 @@ export async function updateWorker(id: string, formData: FormData) {
       lastName,
       email,
       phone,
-      niNumber,
+      nationalInsurance,
       isActive,
     },
   })

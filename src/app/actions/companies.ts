@@ -8,19 +8,35 @@ export async function createCompany(formData: FormData) {
   const name = formData.get('name') as string
   const email = formData.get('email') as string
   const phone = formData.get('phone') as string
-  const address = formData.get('address') as string
+  const billingAddress = formData.get('billingAddress') as string
+  const industry = formData.get('industry') as string
 
-  if (!name || !email) {
-    throw new Error('Name and email are required')
+  if (!name) {
+    throw new Error('Company name is required')
   }
 
-  await prisma.company.create({
+  // Get the first user as creator (temporary - should use auth)
+  const firstUser = await prisma.user.findFirst()
+  if (!firstUser) {
+    throw new Error('No users found in system')
+  }
+
+  const company = await prisma.company.create({
     data: {
       name,
-      email,
-      phone,
-      address,
+      industry,
+      billingAddress,
       isActive: true,
+      createdById: firstUser.id,
+      contacts: email ? {
+        create: {
+          firstName: 'Primary',
+          lastName: 'Contact',
+          email,
+          phone,
+          isPrimary: true,
+        },
+      } : undefined,
     },
   })
 
@@ -31,7 +47,21 @@ export async function createCompany(formData: FormData) {
 export async function getCompanies() {
   return await prisma.company.findMany({
     orderBy: { createdAt: 'desc' },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      industry: true,
+      billingAddress: true,
+      isActive: true,
+      createdAt: true,
+      contacts: {
+        where: { isPrimary: true },
+        take: 1,
+        select: {
+          email: true,
+          phone: true,
+        },
+      },
       _count: {
         select: {
           workers: true,
@@ -61,18 +91,16 @@ export async function getCompany(id: string) {
 
 export async function updateCompany(id: string, formData: FormData) {
   const name = formData.get('name') as string
-  const email = formData.get('email') as string
-  const phone = formData.get('phone') as string
-  const address = formData.get('address') as string
+  const industry = formData.get('industry') as string
+  const billingAddress = formData.get('billingAddress') as string
   const isActive = formData.get('isActive') === 'true'
 
   await prisma.company.update({
     where: { id },
     data: {
       name,
-      email,
-      phone,
-      address,
+      industry,
+      billingAddress,
       isActive,
     },
   })
