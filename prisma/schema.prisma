@@ -163,11 +163,33 @@ model Worker {
   id                String          @id @default(cuid())
   companyId         String
   company           Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  // Basic Info
+  contractorType    String?         // Company/Subcontractor
   firstName         String
   lastName          String
+  tradingName       String?
+  
+  // Contact Details
   email             String?
   phone             String?
+  addressLine1      String?
+  addressLine2      String?
+  city              String?
+  postCode          String?
+  
+  // Tax & Employment
   nationalInsurance String?
+  utrNumber         String?
+  cisStatus         String?         // Gross/Net/Not Registered
+  
+  // Banking
+  bankName          String?
+  bankAccountNumber String?
+  bankSortCode      String?
+  paymentFrequency  String?         // Weekly/Monthly
+  
+  // Legacy fields
   employeeNumber    String?
   department        String?
   isActive          Boolean         @default(true)
@@ -179,6 +201,7 @@ model Worker {
   @@unique([companyId, email])
   @@index([companyId])
   @@index([lastName, firstName])
+  @@index([nationalInsurance])
 }
 
 model PayrollSubmission {

@@ -14,10 +14,12 @@ import {
   CreditCard,
   Settings,
   BarChart3,
+  GitBranch,
 } from 'lucide-react'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Workflow', href: '/dashboard/workflow', icon: GitBranch },
   { name: 'Companies', href: '/dashboard/companies', icon: Building2 },
   { name: 'Workers', href: '/dashboard/workers', icon: Users },
   { name: 'Payroll Submissions', href: '/dashboard/payroll', icon: FileText },
