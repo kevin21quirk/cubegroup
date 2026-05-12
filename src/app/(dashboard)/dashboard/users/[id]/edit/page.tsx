@@ -9,29 +9,30 @@ import { requireSuperAdmin } from '@/lib/auth'
 import { notFound } from 'next/navigation'
 
 interface EditUserPageProps {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 export default async function EditUserPage({ params }: EditUserPageProps) {
   await requireSuperAdmin()
   
   try {
-    const user = await getUser(params.id)
+    const { id } = await params
+    const user = await getUser(id)
     const companies = await getCompanies()
     
     if (!user) {
       notFound()
     }
 
-    const updateUserWithId = updateUser.bind(null, params.id)
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Link href="/dashboard/users">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
+    const updateUserWithId = updateUser.bind(null, id)
+  
+    return (
+    <d  iv className="space-y-6">
+        <div className="flex items-center gap-4">
+        <L  ink href="/dashboard/users">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
         </Link>
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Edit User</h1>
@@ -158,9 +159,10 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
         </CardContent>
       </Card>
     </div>
-  )
+    )
   } catch (error) {
     console.error('Error loading user:', error)
     notFound()
   }
+}
 }
