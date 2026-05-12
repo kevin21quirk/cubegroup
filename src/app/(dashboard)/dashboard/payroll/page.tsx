@@ -10,7 +10,7 @@ export default async function PayrollPage() {
   const submissions = await getPayrollSubmissions()
   
   const totalSubmissions = submissions.length
-  const pendingValidation = submissions.filter(s => s.validationStatus === 'PENDING').length
+  const pendingValidation = submissions.filter(s => s.workflowState === 'AWAITING_VALIDATION').length
   const processing = submissions.filter(s => s.workflowState === 'PROCESSING').length
   const completed = submissions.filter(s => s.workflowState === 'COMPLETED').length
   return (

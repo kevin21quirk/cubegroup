@@ -20,10 +20,9 @@ export async function createPayrollSubmission(formData: FormData) {
       companyId,
       payrollWeek,
       totalGrossPay,
-      totalEmployerNI,
-      totalPension,
+      totalCubeFees: totalEmployerNI,
+      totalUmbrellaFees: totalPension,
       workflowState: 'PROCESSING',
-      validationStatus: 'PENDING',
     },
   })
 
