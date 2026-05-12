@@ -1,9 +1,11 @@
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 
+export type UserRole = 'SUPER_ADMIN' | 'CUBE_ADMIN' | 'PAYROLL_OPERATOR' | 'FINANCE_USER' | 'READ_ONLY'
+
 export interface User {
   email: string
-  role: 'SUPER_ADMIN' | 'USER'
+  role: UserRole
   companyId?: string
   name: string
 }
@@ -17,7 +19,7 @@ const SUPER_ADMIN = {
 }
 
 // Simple user store (in production, this would be in database)
-const USERS: Record<string, { password: string; name: string; role: 'USER'; companyId?: string }> = {
+const USERS: Record<string, { password: string; name: string; role: UserRole; companyId?: string }> = {
   // Add more users here as needed
 }
 

@@ -58,7 +58,7 @@ export default async function UsersPage() {
             <UserCog className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{users.filter(u => u.role === 'USER').length}</div>
+            <div className="text-2xl font-bold">{users.filter(u => u.role !== 'SUPER_ADMIN').length}</div>
             <p className="text-xs text-muted-foreground">Company-specific access</p>
           </CardContent>
         </Card>
