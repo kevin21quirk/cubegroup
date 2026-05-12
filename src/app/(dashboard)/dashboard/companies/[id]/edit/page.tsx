@@ -1,0 +1,126 @@
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { ArrowLeft } from 'lucide-react'
+import Link from 'next/link'
+import { getCompany, updateCompany } from '@/app/actions/companies'
+import { notFound } from 'next/navigation'
+
+interface EditCompanyPageProps {
+  params: { id: string }
+}
+
+export default async function EditCompanyPage({ params }: EditCompanyPageProps) {
+  const company = await getCompany(params.id)
+  
+  if (!company) {
+    notFound()
+  }
+
+  const updateCompanyWithId = updateCompany.bind(null, params.id)
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Link href={`/dashboard/companies/${params.id}`}>
+          <Button variant="ghost" size="icon">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+        </Link>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Edit Company</h1>
+          <p className="text-muted-foreground">
+            Update company information
+          </p>
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Company Details</CardTitle>
+          <CardDescription>Edit the company information</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form action={updateCompanyWithId} className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-2">
+                <label htmlFor="name" className="text-sm font-medium">
+                  Company Name *
+                </label>
+                <Input
+                  id="name"
+                  name="name"
+                  defaultValue={company.name}
+                  placeholder="Acme Corporation"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="industry" className="text-sm font-medium">
+                  Industry
+                </label>
+                <select
+                  id="industry"
+                  name="industry"
+                  defaultValue={company.industry || ''}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="">Select industry...</option>
+                  <option value="Construction">Construction</option>
+                  <option value="Agriculture">Agriculture</option>
+                  <option value="Healthcare">Healthcare</option>
+                  <option value="Hospitality">Hospitality</option>
+                  <option value="IT & Technology">IT & Technology</option>
+                  <option value="Manufacturing">Manufacturing</option>
+                  <option value="Retail">Retail</option>
+                  <option value="Transportation">Transportation</option>
+                  <option value="Warehousing">Warehousing</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="billingAddress" className="text-sm font-medium">
+                  Billing Address
+                </label>
+                <Input
+                  id="billingAddress"
+                  name="billingAddress"
+                  defaultValue={company.billingAddress || ''}
+                  placeholder="123 Business St, London"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="isActive" className="text-sm font-medium">
+                  Status
+                </label>
+                <select
+                  id="isActive"
+                  name="isActive"
+                  defaultValue={company.isActive ? 'true' : 'false'}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="true">Active</option>
+                  <option value="false">Inactive</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 pt-4">
+              <Button type="submit">
+                Save Changes
+              </Button>
+              <Link href={`/dashboard/companies/${params.id}`}>
+                <Button type="button" variant="outline">
+                  Cancel
+                </Button>
+              </Link>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}

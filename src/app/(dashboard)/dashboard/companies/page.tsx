@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Building2, Users, FileText, Mail, Phone, MapPin } from 'lucide-react'
+import { Plus, Building2, Users, FileText, Mail, Phone, MapPin, Edit } from 'lucide-react'
 import Link from 'next/link'
 import { getCompanies } from '@/app/actions/companies'
 import { formatDate } from '@/lib/utils'
@@ -49,23 +49,27 @@ export default async function CompaniesPage() {
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {companies.map((company) => (
-            <Link key={company.id} href={`/dashboard/companies/${company.id}`}>
-              <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-primary/10 rounded-lg">
-                        <Building2 className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-lg">{company.name}</CardTitle>
-                        <Badge variant={company.isActive ? "default" : "secondary"} className="mt-1">
-                          {company.isActive ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </div>
+            <Card key={company.id} className="hover:shadow-lg transition-shadow h-full">
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <Link href={`/dashboard/companies/${company.id}`} className="flex items-center gap-3 flex-1">
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <Building2 className="h-6 w-6 text-primary" />
                     </div>
-                  </div>
-                </CardHeader>
+                    <div>
+                      <CardTitle className="text-lg">{company.name}</CardTitle>
+                      <Badge variant={company.isActive ? "default" : "secondary"} className="mt-1">
+                        {company.isActive ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </div>
+                  </Link>
+                  <Link href={`/dashboard/companies/${company.id}/edit`}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                </div>
+              </CardHeader>
                 <CardContent className="space-y-3">
                   {company.contacts[0]?.email && (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -106,7 +110,6 @@ export default async function CompaniesPage() {
                   </p>
                 </CardContent>
               </Card>
-            </Link>
           ))}
         </div>
       )}
