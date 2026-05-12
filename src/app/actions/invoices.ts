@@ -15,14 +15,21 @@ export async function createInvoice(formData: FormData) {
     throw new Error('All fields are required')
   }
 
+  // Get company details for billing name
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+  })
+
   const invoice = await prisma.invoice.create({
     data: {
       companyId,
       payrollSubmissionId: payrollSubmissionId || undefined,
       invoiceNumber,
+      subtotal: totalAmount,
       totalAmount,
       invoiceType,
       paymentStatus: 'UNPAID',
+      billingName: company?.name || 'Unknown',
       issueDate: new Date(),
       dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
     },
