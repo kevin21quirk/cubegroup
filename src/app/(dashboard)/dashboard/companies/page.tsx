@@ -1,8 +1,14 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Plus } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Plus, Building2, Users, FileText, Mail, Phone, MapPin } from 'lucide-react'
+import Link from 'next/link'
+import { getCompanies } from '@/app/actions/companies'
+import { formatDate } from '@/lib/utils'
 
-export default function CompaniesPage() {
+export default async function CompaniesPage() {
+  const companies = await getCompanies()
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -12,28 +18,98 @@ export default function CompaniesPage() {
             Manage your client companies and their details
           </p>
         </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Company
-        </Button>
+        <Link href="/dashboard/companies/new">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Company
+          </Button>
+        </Link>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Company Directory</CardTitle>
-          <CardDescription>All registered client companies</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-12 text-muted-foreground">
-            <p className="text-lg font-medium">No companies yet</p>
-            <p className="text-sm mt-2">Configure your database and add your first company to get started</p>
-            <Button className="mt-4" variant="outline">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Your First Company
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {companies.length === 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Company Directory</CardTitle>
+            <CardDescription>All registered client companies</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-12 text-muted-foreground">
+              <Building2 className="mx-auto h-12 w-12 mb-4 opacity-50" />
+              <p className="text-lg font-medium">No companies yet</p>
+              <p className="text-sm mt-2">Add your first client company to get started</p>
+              <Link href="/dashboard/companies/new">
+                <Button className="mt-4" variant="outline">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Your First Company
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {companies.map((company) => (
+            <Link key={company.id} href={`/dashboard/companies/${company.id}`}>
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-primary/10 rounded-lg">
+                        <Building2 className="h-6 w-6 text-primary" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">{company.name}</CardTitle>
+                        <Badge variant={company.isActive ? "default" : "secondary"} className="mt-1">
+                          {company.isActive ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {company.email && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Mail className="h-4 w-4" />
+                      <span className="truncate">{company.email}</span>
+                    </div>
+                  )}
+                  {company.phone && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Phone className="h-4 w-4" />
+                      <span>{company.phone}</span>
+                    </div>
+                  )}
+                  {company.address && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <MapPin className="h-4 w-4" />
+                      <span className="truncate">{company.address}</span>
+                    </div>
+                  )}
+                  <div className="pt-3 border-t grid grid-cols-2 gap-4">
+                    <div>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Users className="h-3 w-3" />
+                        <span>Workers</span>
+                      </div>
+                      <p className="text-lg font-semibold">{company._count.workers}</p>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <FileText className="h-3 w-3" />
+                        <span>Submissions</span>
+                      </div>
+                      <p className="text-lg font-semibold">{company._count.payrollSubmissions}</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground pt-2">
+                    Added {formatDate(company.createdAt)}
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

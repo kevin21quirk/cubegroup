@@ -1,14 +1,29 @@
-"use client"
-
+import { prisma } from '@/lib/prisma'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { FileText, AlertCircle, Clock, DollarSign } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 
-export function DashboardStats() {
-  const totalSubmissions = 0
-  const pendingValidation = 0
-  const awaitingPayment = 0
-  const unpaidAmount = 0
+export async function DashboardStats() {
+  const [
+    totalSubmissions,
+    pendingValidation,
+    awaitingPayment,
+    unpaidInvoices,
+  ] = await Promise.all([
+    prisma.payrollSubmission.count(),
+    prisma.payrollSubmission.count({
+      where: { workflowState: 'AWAITING_VALIDATION' },
+    }),
+    prisma.invoice.count({
+      where: { paymentStatus: 'UNPAID' },
+    }),
+    prisma.invoice.aggregate({
+      where: { paymentStatus: { in: ['UNPAID', 'PARTIAL'] } },
+      _sum: { totalAmount: true },
+    }),
+  ])
+  
+  const unpaidAmount = unpaidInvoices._sum.totalAmount || 0
 
   const stats = [
     {
