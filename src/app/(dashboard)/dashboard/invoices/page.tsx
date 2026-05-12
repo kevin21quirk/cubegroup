@@ -2,8 +2,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Receipt, Plus, DollarSign, Clock, CheckCircle } from 'lucide-react'
+import Link from 'next/link'
+import { getInvoices } from '@/app/actions/invoices'
+import { formatDate, formatCurrency } from '@/lib/utils'
 
-export default function InvoicesPage() {
+export default async function InvoicesPage() {
+  const invoices = await getInvoices()
+  
+  const totalInvoices = invoices.length
+  const unpaidAmount = invoices.filter(i => i.paymentStatus === 'UNPAID').reduce((sum, i) => sum + i.totalAmount, 0)
+  const paidThisMonth = invoices.filter(i => i.paymentStatus === 'PAID' && i.paidDate && new Date(i.paidDate).getMonth() === new Date().getMonth()).reduce((sum, i) => sum + i.totalAmount, 0)
+  const totalRevenue = invoices.reduce((sum, i) => sum + i.totalAmount, 0)
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -13,10 +22,12 @@ export default function InvoicesPage() {
             Manage client and umbrella company invoices
           </p>
         </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Create Invoice
-        </Button>
+        <Link href="/dashboard/invoices/new">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Create Invoice
+          </Button>
+        </Link>
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
@@ -26,7 +37,7 @@ export default function InvoicesPage() {
             <Receipt className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold">{totalInvoices}</div>
             <p className="text-xs text-muted-foreground">All time</p>
           </CardContent>
         </Card>
@@ -36,7 +47,7 @@ export default function InvoicesPage() {
             <Clock className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">£0.00</div>
+            <div className="text-2xl font-bold">{formatCurrency(unpaidAmount)}</div>
             <p className="text-xs text-muted-foreground">Outstanding</p>
           </CardContent>
         </Card>
@@ -46,7 +57,7 @@ export default function InvoicesPage() {
             <CheckCircle className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">£0.00</div>
+            <div className="text-2xl font-bold">{formatCurrency(paidThisMonth)}</div>
             <p className="text-xs text-muted-foreground">Received</p>
           </CardContent>
         </Card>
@@ -56,7 +67,7 @@ export default function InvoicesPage() {
             <DollarSign className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">£0.00</div>
+            <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
             <p className="text-xs text-muted-foreground">Total invoiced</p>
           </CardContent>
         </Card>
