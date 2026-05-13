@@ -11,6 +11,9 @@ import { formatDate } from '@/lib/utils'
 export const dynamic = 'force-dynamic'
 
 export default async function UsersPage() {
+  await requireSuperAdmin()
+  
+  const users = await getUsers()
 
   return (
     <div className="space-y-6">

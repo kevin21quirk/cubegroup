@@ -26,7 +26,7 @@ export default async function EditCompanyPage({ params }: EditCompanyPageProps) 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href={`/dashboard/companies/${params.id}`}>
+        <Link href={`/dashboard/companies/${id}`}>
           <Button variant="ghost" size="icon">
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -34,7 +34,7 @@ export default async function EditCompanyPage({ params }: EditCompanyPageProps) 
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Edit Company</h1>
           <p className="text-muted-foreground">
-            Update company information
+            Update company details and information
           </p>
         </div>
       </div>
@@ -116,7 +116,7 @@ export default async function EditCompanyPage({ params }: EditCompanyPageProps) 
               <Button type="submit">
                 Save Changes
               </Button>
-              <Link href={`/dashboard/companies/${params.id}`}>
+              <Link href={`/dashboard/companies/${id}`}>
                 <Button type="button" variant="outline">
                   Cancel
                 </Button>
