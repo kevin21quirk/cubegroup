@@ -23,12 +23,12 @@ const allNavigation = [
   { name: 'Invoices', href: '/dashboard/invoices', icon: Receipt },
   { name: 'Payments', href: '/dashboard/payments', icon: CreditCard },
   { name: 'Reports', href: '/dashboard/reports', icon: BarChart3 },
-  { name: 'User Management', href: '/dashboard/users', icon: UserCog, adminOnly: true },
+  { name: 'User Management', href: '/dashboard/users', icon: UserCog },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
 
 export function Sidebar() {
-  // Temporarily show all navigation - will add role filtering later
+  // Show all navigation for now - will add role filtering later
   const navigation = allNavigation
 
   return <SidebarClient navigation={navigation} />
