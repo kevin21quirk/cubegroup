@@ -196,25 +196,6 @@ export function SidebarClient() {
               Reports
             </Link>
             <Link
-              href="/dashboard/users"
-              className={cn(
-                'group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
-                pathname === '/dashboard/users'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-              )}
-            >
-              <UserCog
-                className={cn(
-                  'mr-3 h-5 w-5 flex-shrink-0',
-                  pathname === '/dashboard/users'
-                    ? 'text-primary-foreground'
-                    : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300'
-                )}
-              />
-              User Management
-            </Link>
-            <Link
               href="/dashboard/settings"
               className={cn(
                 'group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
