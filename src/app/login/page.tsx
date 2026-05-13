@@ -3,15 +3,23 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import Image from 'next/image'
 import { redirect } from 'next/navigation'
+import { getCompanies } from '@/app/actions/companies'
 
 async function handleLogin(formData: FormData) {
   'use server'
   
   // Temporarily just redirect without auth logic
-  redirect('/dashboard')
+  const companyId = formData.get('companyId') as string
+  if (companyId) {
+    redirect(`/dashboard?companyId=${companyId}`)
+  } else {
+    redirect('/dashboard')
+  }
 }
 
 export default async function LoginPage() {
+  const companies = await getCompanies()
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
       <Card className="w-full max-w-md">
@@ -35,6 +43,56 @@ export default async function LoginPage() {
         </CardHeader>
         <CardContent>
           <form action={handleLogin} className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="email" className="text-sm font-medium">
+                Email Address
+              </label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="Enter your email"
+                required
+                autoComplete="email"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="password" className="text-sm font-medium">
+                Password
+              </label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                placeholder="Enter your password"
+                required
+                autoComplete="current-password"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="companyId" className="text-sm font-medium">
+                Company *
+              </label>
+              <select
+                id="companyId"
+                name="companyId"
+                required
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="">Select a company...</option>
+                {companies.map((company) => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">
+                Select a company to view their data
+              </p>
+            </div>
+
             <Button type="submit" className="w-full">
               Sign In
             </Button>
