@@ -4,20 +4,43 @@ import { Input } from '@/components/ui/input'
 import Image from 'next/image'
 import { redirect } from 'next/navigation'
 import { getCompanies } from '@/app/actions/companies'
+import { login } from '@/lib/auth'
 
 async function handleLogin(formData: FormData) {
   'use server'
   
-  // Temporarily just redirect without auth logic
+  const email = formData.get('email') as string
+  const password = formData.get('password') as string
   const companyId = formData.get('companyId') as string
-  if (companyId) {
-    redirect(`/dashboard?companyId=${companyId}`)
+  
+  const user = await login(email, password, companyId)
+  
+  if (user) {
+    if (user.role === 'SUPER_ADMIN') {
+      // Super admin can see everything or filter by company
+      if (user.companyId) {
+        redirect(`/dashboard?companyId=${user.companyId}`)
+      } else {
+        redirect('/dashboard')
+      }
+    } else {
+      // Staff must have a company selected
+      if (user.companyId) {
+        redirect(`/dashboard?companyId=${user.companyId}`)
+      } else {
+        redirect('/login?error=nocompany')
+      }
+    }
   } else {
-    redirect('/dashboard')
+    redirect('/login?error=invalid')
   }
 }
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: { error?: string }
+}) {
   const companies = await getCompanies()
 
   return (
@@ -42,6 +65,20 @@ export default async function LoginPage() {
           </div>
         </CardHeader>
         <CardContent>
+          {searchParams.error === 'invalid' && (
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+              <p className="text-sm text-red-600 dark:text-red-400">
+                Invalid email or password. Please try again.
+              </p>
+            </div>
+          )}
+          {searchParams.error === 'nocompany' && (
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+              <p className="text-sm text-red-600 dark:text-red-400">
+                Please select a company to continue.
+              </p>
+            </div>
+          )}
           <form action={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <label htmlFor="email" className="text-sm font-medium">
