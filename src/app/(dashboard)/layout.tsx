@@ -2,17 +2,18 @@
 // import { redirect } from 'next/navigation'
 import { Sidebar } from '@/components/dashboard/sidebar'
 import { Header } from '@/components/dashboard/header'
+import { requireAuth } from '@/lib/auth'
 
-export default function DashboardLayout({
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  // TEMPORARY: Auth check disabled
-  // const { userId } = await auth()
-  // if (!userId) {
-  //   redirect('/sign-in')
-  // }
+  // Check authentication
+  await requireAuth()
 
   return (
     <div className="flex h-screen overflow-hidden">
