@@ -4,35 +4,16 @@ import { Input } from '@/components/ui/input'
 import Image from 'next/image'
 import { getCompanies } from '@/app/actions/companies'
 import { redirect } from 'next/navigation'
-import { login } from '@/lib/auth'
 
 async function handleLogin(formData: FormData) {
   'use server'
   
-  const email = formData.get('email') as string
-  const password = formData.get('password') as string
+  // Temporarily just redirect without auth logic
   const companyId = formData.get('companyId') as string
-  
-  const user = await login(email, password, companyId)
-  
-  if (user) {
-    if (user.role === 'SUPER_ADMIN') {
-      // Super admin can see everything or filter by company
-      if (user.companyId) {
-        redirect(`/dashboard?companyId=${user.companyId}`)
-      } else {
-        redirect('/dashboard')
-      }
-    } else {
-      // Staff must have a company selected
-      if (user.companyId) {
-        redirect(`/dashboard?companyId=${user.companyId}`)
-      } else {
-        redirect('/login?error=nocompany')
-      }
-    }
+  if (companyId) {
+    redirect(`/dashboard?companyId=${companyId}`)
   } else {
-    redirect('/login?error=invalid')
+    redirect('/dashboard')
   }
 }
 
