@@ -1,17 +1,16 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { UserPlus, Edit, Trash2 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { UserPlus, Edit, Trash2, Plus, UserCog, Shield } from 'lucide-react'
 import Link from 'next/link'
-import { getUsers } from '@/app/actions/users'
+import { getUsers, deleteUser } from '@/app/actions/users'
+import { requireSuperAdmin } from '@/lib/auth'
 import { formatDate } from '@/lib/utils'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
 
 export default async function UsersPage() {
-  await requireSuperAdmin()
-  
-  const users = await getUsers()
 
   return (
     <div className="space-y-6">

@@ -14,14 +14,14 @@ interface EditCompanyPageProps {
 }
 
 export default async function EditCompanyPage({ params }: EditCompanyPageProps) {
-  const { id } = await params;
+  const { id } = await params
   const company = await getCompany(id)
   
   if (!company) {
     notFound()
   }
 
-  const updateCompanyWithId = updateCompany.bind(null, params.id)
+  const updateCompanyWithId = updateCompany.bind(null, id)
 
   return (
     <div className="space-y-6">
