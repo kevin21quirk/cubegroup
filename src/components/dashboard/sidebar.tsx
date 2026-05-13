@@ -11,7 +11,6 @@ import {
   GitBranch,
   UserCog,
 } from 'lucide-react'
-import { getSession } from '@/lib/auth'
 import { SidebarClient } from './sidebar-client'
 
 const allNavigation = [
@@ -28,22 +27,9 @@ const allNavigation = [
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
 
-export async function Sidebar() {
-  let isSuperAdmin = false
-  
-  try {
-    const user = await getSession()
-    isSuperAdmin = user?.role === 'SUPER_ADMIN'
-  } catch (error) {
-    console.error('Error getting session in sidebar:', error)
-    // Default to non-admin if session fails
-    isSuperAdmin = false
-  }
-  
-  // Filter navigation based on role
-  const navigation = allNavigation.filter(item => 
-    !item.adminOnly || isSuperAdmin
-  )
+export function Sidebar() {
+  // Temporarily show all navigation - will add role filtering later
+  const navigation = allNavigation
 
   return <SidebarClient navigation={navigation} />
 }
