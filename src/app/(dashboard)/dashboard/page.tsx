@@ -5,6 +5,9 @@ import { WorkflowQueue } from '@/components/dashboard/workflow-queue'
 import { RevenueChart } from '@/components/dashboard/revenue-chart'
 import { Card, CardContent } from '@/components/ui/card'
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 function LoadingCard() {
   return (
     <Card>

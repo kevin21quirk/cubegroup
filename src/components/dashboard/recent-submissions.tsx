@@ -4,6 +4,9 @@ import { Badge } from '@/components/ui/badge'
 import { formatDate } from '@/lib/utils'
 import Link from 'next/link'
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 export async function RecentSubmissions() {
   const submissions = await prisma.payrollSubmission.findMany({
     take: 10,

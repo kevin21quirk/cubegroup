@@ -2,6 +2,9 @@ import { prisma } from '@/lib/prisma'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 export async function WorkflowQueue() {
   const stats = await prisma.payrollSubmission.groupBy({
     by: ['workflowState'],

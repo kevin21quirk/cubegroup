@@ -3,6 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { FileText, AlertCircle, Clock, DollarSign } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 export async function DashboardStats() {
   const [
     totalSubmissions,
