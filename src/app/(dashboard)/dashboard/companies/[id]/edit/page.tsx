@@ -6,12 +6,16 @@ import Link from 'next/link'
 import { getCompany, updateCompany } from '@/app/actions/companies'
 import { notFound } from 'next/navigation'
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 interface EditCompanyPageProps {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 export default async function EditCompanyPage({ params }: EditCompanyPageProps) {
-  const company = await getCompany(params.id)
+  const { id } = await params;
+  const company = await getCompany(id)
   
   if (!company) {
     notFound()

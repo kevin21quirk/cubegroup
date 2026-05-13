@@ -6,6 +6,9 @@ import Link from 'next/link'
 import { getPayrollSubmissions } from '@/app/actions/payroll'
 import { formatDate, formatCurrency } from '@/lib/utils'
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 export default async function PayrollPage() {
   const submissions = await getPayrollSubmissions()
   

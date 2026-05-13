@@ -1,7 +1,11 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Building2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Building2, Check } from 'lucide-react'
 import Link from 'next/link'
 import { getCompanies } from '@/app/actions/companies'
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
 
 export default async function SelectCompanyPage() {
   const companies = await getCompanies()

@@ -7,6 +7,9 @@ import { createInvoice } from '@/app/actions/invoices'
 import { getCompanies } from '@/app/actions/companies'
 import { getPayrollSubmissions } from '@/app/actions/payroll'
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 export default async function NewInvoicePage() {
   const companies = await getCompanies()
   const payrollSubmissions = await getPayrollSubmissions()

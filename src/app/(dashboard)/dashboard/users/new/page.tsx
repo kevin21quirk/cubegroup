@@ -5,6 +5,10 @@ import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { createUser } from '@/app/actions/users'
 import { getCompanies } from '@/app/actions/companies'
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 import { requireSuperAdmin } from '@/lib/auth'
 
 export default async function NewUserPage() {

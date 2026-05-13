@@ -6,6 +6,9 @@ import Link from 'next/link'
 import { getCompanies } from '@/app/actions/companies'
 import { formatDate } from '@/lib/utils'
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 export default async function CompaniesPage() {
   const companies = await getCompanies()
 

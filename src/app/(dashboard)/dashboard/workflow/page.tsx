@@ -1,8 +1,12 @@
 import { WorkflowVisualization, getDefaultWorkflowSteps } from '@/components/workflow/workflow-visualization'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { getPayrollSubmissions } from '@/app/actions/payroll'
 import { getInvoices } from '@/app/actions/invoices'
 import { getPayments } from '@/app/actions/payments'
 import { prisma } from '@/lib/prisma'
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
 
 interface WorkflowPageProps {
   searchParams: { companyId?: string }

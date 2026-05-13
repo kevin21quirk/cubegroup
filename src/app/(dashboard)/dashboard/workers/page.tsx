@@ -6,6 +6,9 @@ import Link from 'next/link'
 import { getWorkers } from '@/app/actions/workers'
 import { formatDate } from '@/lib/utils'
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 export default async function WorkersPage() {
   const workers = await getWorkers()
 

@@ -1,10 +1,13 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Receipt, Plus, DollarSign, Clock, CheckCircle } from 'lucide-react'
+import { Receipt, Plus, Download, DollarSign, Clock, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
 import { getInvoices } from '@/app/actions/invoices'
 import { formatDate, formatCurrency } from '@/lib/utils'
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
 
 export default async function InvoicesPage() {
   const invoices = await getInvoices()

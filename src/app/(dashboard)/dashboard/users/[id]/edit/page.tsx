@@ -8,6 +8,9 @@ import { getCompanies } from '@/app/actions/companies'
 import { requireSuperAdmin } from '@/lib/auth'
 import { notFound } from 'next/navigation'
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 interface EditUserPageProps {
   params: Promise<{ id: string }>
 }

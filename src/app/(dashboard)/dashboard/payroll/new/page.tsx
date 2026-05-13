@@ -6,6 +6,9 @@ import Link from 'next/link'
 import { createPayrollSubmission } from '@/app/actions/payroll'
 import { getCompanies } from '@/app/actions/companies'
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 export default async function NewPayrollPage() {
   const companies = await getCompanies()
 

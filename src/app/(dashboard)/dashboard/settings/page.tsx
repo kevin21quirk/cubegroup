@@ -2,7 +2,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Settings as SettingsIcon, Save } from 'lucide-react'
 import { Settings, Database, Mail, Key, Palette, Bell } from 'lucide-react'
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
 
 export default function SettingsPage() {
   return (

@@ -6,6 +6,9 @@ import Link from 'next/link'
 import { createWorker } from '@/app/actions/workers'
 import { getCompanies } from '@/app/actions/companies'
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 export default async function NewWorkerPage() {
   const companies = await getCompanies()
 

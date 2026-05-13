@@ -5,6 +5,9 @@ import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { createCompany } from '@/app/actions/companies'
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 export default function NewCompanyPage() {
   return (
     <div className="space-y-6">
