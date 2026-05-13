@@ -2,28 +2,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import Image from 'next/image'
-import { getCompanies } from '@/app/actions/companies'
 import { redirect } from 'next/navigation'
 
 async function handleLogin(formData: FormData) {
   'use server'
   
   // Temporarily just redirect without auth logic
-  const companyId = formData.get('companyId') as string
-  if (companyId) {
-    redirect(`/dashboard?companyId=${companyId}`)
-  } else {
-    redirect('/dashboard')
-  }
+  redirect('/dashboard')
 }
 
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: { error?: string }
-}) {
-  const companies = await getCompanies()
-
+export default async function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
       <Card className="w-full max-w-md">
@@ -46,71 +34,7 @@ export default async function LoginPage({
           </div>
         </CardHeader>
         <CardContent>
-          {searchParams.error === 'invalid' && (
-            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
-              <p className="text-sm text-red-600 dark:text-red-400">
-                Invalid email or password. Please try again.
-              </p>
-            </div>
-          )}
-          {searchParams.error === 'nocompany' && (
-            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
-              <p className="text-sm text-red-600 dark:text-red-400">
-                Please select a company to continue.
-              </p>
-            </div>
-          )}
           <form action={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium">
-                Email Address
-              </label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="Enter your email"
-                required
-                autoComplete="email"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium">
-                Password
-              </label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="Enter your password"
-                required
-                autoComplete="current-password"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="companyId" className="text-sm font-medium">
-                Company *
-              </label>
-              <select
-                id="companyId"
-                name="companyId"
-                required
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <option value="">Select a company...</option>
-                {companies.map((company) => (
-                  <option key={company.id} value={company.id}>
-                    {company.name}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-muted-foreground">
-                Staff must select a company. Super admins see all data.
-              </p>
-            </div>
-
             <Button type="submit" className="w-full">
               Sign In
             </Button>
