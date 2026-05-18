@@ -6,13 +6,13 @@ import { Progress } from '@/components/ui/progress'
 export const dynamic = 'force-dynamic'
 
 export async function WorkflowQueue() {
-  let stats: any[] = []
+  let stats: Array<{ workflowState: any; _count: number }> = []
   
   try {
     stats = await prisma.payrollSubmission.groupBy({
       by: ['workflowState'],
       _count: true,
-    })
+    }) as any
   } catch (error) {
     console.error('Workflow queue error:', error)
     // Return empty array if database schema mismatch
