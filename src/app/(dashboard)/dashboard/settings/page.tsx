@@ -162,12 +162,12 @@ export default function SettingsPage() {
               <label className="text-sm font-medium">Model</label>
               <Input 
                 type="text" 
-                placeholder="claude-3-5-sonnet-20241022"
+                placeholder="claude-sonnet-4-6"
                 disabled
-                value="claude-3-5-sonnet-20241022"
+                value="claude-sonnet-4-6"
               />
               <p className="text-xs text-muted-foreground">
-                Claude 3.5 Sonnet recommended for structured data extraction
+                Claude Sonnet 4.6 (latest) - Best for structured data extraction
               </p>
             </div>
             <div className="flex items-center gap-2">

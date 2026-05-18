@@ -41,7 +41,7 @@ This document describes the AI-powered email ingestion and payroll processing pi
 
 #### AI Extraction Service (`/src/services/ai/`)
 - **Purpose**: Extract payroll data from documents using Anthropic Claude
-- **Model**: Claude 3.5 Sonnet (configurable)
+- **Model**: Claude Sonnet 4.6 (configurable)
 - **Input**: Document content + file type
 - **Output**: Normalized payroll data in universal schema
 - **Features**: 
@@ -167,7 +167,7 @@ interface NormalizedPayrollData {
 ```env
 # Anthropic Claude
 ANTHROPIC_API_KEY=sk-ant-...
-ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
+ANTHROPIC_MODEL=claude-sonnet-4-6
 
 # Storage
 STORAGE_TYPE=local|vercel-blob|s3

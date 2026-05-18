@@ -20,7 +20,7 @@ export class AIExtractionService {
       const prompt = this.buildExtractionPrompt(content, fileType)
       
       const message = await this.anthropic.messages.create({
-        model: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022',
+        model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6',
         max_tokens: 4096,
         temperature: 0.1,
         system: this.getSystemPrompt(),
