@@ -58,7 +58,9 @@ export default async function WorkflowPage({ searchParams }: WorkflowPageProps) 
 
   // Validation
   const validated = filteredSubmissions.filter(s => 
-    s.workflowState !== 'EMAIL_RECEIVED' && s.workflowState !== 'PROCESSING'
+    s.workflowState !== 'EMAIL_RECEIVED' && 
+    s.workflowState !== 'ATTACHMENT_DOWNLOADED' && 
+    s.workflowState !== 'AI_PROCESSING'
   )
   steps[2].count = validated.length
   steps[2].status = validated.length > 0 ? 'completed' :

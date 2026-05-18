@@ -22,7 +22,7 @@ export async function createPayrollSubmission(formData: FormData) {
       totalGrossPay,
       totalCubeFees: totalEmployerNI,
       totalUmbrellaFees: totalPension,
-      workflowState: 'PROCESSING',
+      workflowState: 'EMAIL_RECEIVED',
     },
   })
 
