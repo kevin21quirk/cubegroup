@@ -237,7 +237,7 @@ export class EmailProcessingService {
           await prisma.attachment.update({
             where: { id: attachment.id },
             data: {
-              extractedData: { entries: result.data },
+              extractedData: { entries: result.data } as any,
               status: 'EXTRACTED',
               processedAt: new Date()
             }
