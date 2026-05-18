@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Settings as SettingsIcon, Save } from 'lucide-react'
+import { Settings as SettingsIcon, Save, Info } from 'lucide-react'
 import { Settings, Database, Mail, Key, Palette, Bell } from 'lucide-react'
 
 // Force dynamic rendering
@@ -17,6 +17,22 @@ export default function SettingsPage() {
           Configure your platform settings and integrations
         </p>
       </div>
+
+      <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950 dark:border-blue-800">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Info className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <CardTitle className="text-blue-900 dark:text-blue-100">Environment Configuration</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-blue-800 dark:text-blue-200">
+            For security reasons, API keys and sensitive credentials must be configured in your <code className="bg-blue-100 dark:bg-blue-900 px-1 py-0.5 rounded">.env</code> file. 
+            The fields below are read-only and show the current configuration status. 
+            To update settings, edit your <code className="bg-blue-100 dark:bg-blue-900 px-1 py-0.5 rounded">.env</code> file and redeploy the application.
+          </p>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6">
         <Card>
