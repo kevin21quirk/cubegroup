@@ -1,15 +1,15 @@
 import { AIExtractionResult, NormalizedPayrollData } from '@/types/payroll'
-import OpenAI from 'openai'
+import Anthropic from '@anthropic-ai/sdk'
 
 export class AIExtractionService {
-  private openai: OpenAI
+  private anthropic: Anthropic
 
   constructor() {
-    const apiKey = process.env.OPENAI_API_KEY
+    const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) {
-      throw new Error('OPENAI_API_KEY is not configured')
+      throw new Error('ANTHROPIC_API_KEY is not configured')
     }
-    this.openai = new OpenAI({ apiKey })
+    this.anthropic = new Anthropic({ apiKey })
   }
 
   async extractPayrollData(
@@ -19,25 +19,22 @@ export class AIExtractionService {
     try {
       const prompt = this.buildExtractionPrompt(content, fileType)
       
-      const completion = await this.openai.chat.completions.create({
-        model: process.env.OPENAI_MODEL || 'gpt-4o',
+      const message = await this.anthropic.messages.create({
+        model: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022',
+        max_tokens: 4096,
+        temperature: 0.1,
+        system: this.getSystemPrompt(),
         messages: [
-          {
-            role: 'system',
-            content: this.getSystemPrompt()
-          },
           {
             role: 'user',
             content: prompt
           }
-        ],
-        temperature: 0.1,
-        response_format: { type: 'json_object' }
+        ]
       })
 
-      const responseText = completion.choices[0]?.message?.content
+      const responseText = message.content[0]?.type === 'text' ? message.content[0].text : null
       if (!responseText) {
-        throw new Error('No response from AI')
+        throw new Error('No response from Claude')
       }
 
       const parsed = JSON.parse(responseText)
@@ -109,7 +106,7 @@ If a field is missing, use empty string for text fields or 0 for numbers.`
 
 ${content}
 
-Return the data in the specified JSON format.`
+Please analyze this document and extract all payroll entries. Return ONLY a valid JSON object (no markdown, no explanation) in the exact format specified in the system prompt. Ensure all numeric values are numbers, not strings.`
   }
 
   private normalizeAIResponse(response: any): NormalizedPayrollData[] {

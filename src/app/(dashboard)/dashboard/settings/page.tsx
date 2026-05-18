@@ -144,18 +144,30 @@ export default function SettingsPage() {
               <Key className="h-5 w-5" />
               <CardTitle>AI Configuration</CardTitle>
             </div>
-            <CardDescription>OpenAI API for document extraction</CardDescription>
+            <CardDescription>Anthropic Claude API for document extraction</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">OpenAI API Key</label>
+              <label className="text-sm font-medium">Anthropic API Key</label>
               <Input 
                 type="password" 
-                placeholder="sk-xxxxx"
+                placeholder="sk-ant-xxxxx"
                 disabled
               />
               <p className="text-xs text-muted-foreground">
-                Used for AI-powered payroll data extraction
+                Used for AI-powered payroll data extraction with Claude
+              </p>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Model</label>
+              <Input 
+                type="text" 
+                placeholder="claude-3-5-sonnet-20241022"
+                disabled
+                value="claude-3-5-sonnet-20241022"
+              />
+              <p className="text-xs text-muted-foreground">
+                Claude 3.5 Sonnet recommended for structured data extraction
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -163,7 +175,7 @@ export default function SettingsPage() {
                 Not Configured
               </Badge>
               <span className="text-sm text-muted-foreground">
-                Get API key from platform.openai.com
+                Get API key from console.anthropic.com
               </span>
             </div>
           </CardContent>

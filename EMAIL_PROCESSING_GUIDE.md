@@ -40,8 +40,8 @@ This document describes the AI-powered email ingestion and payroll processing pi
 - **Helpers**: uploadToProcessed, uploadToExceptions, moveToProcessed
 
 #### AI Extraction Service (`/src/services/ai/`)
-- **Purpose**: Extract payroll data from documents using OpenAI
-- **Model**: GPT-4o (configurable)
+- **Purpose**: Extract payroll data from documents using Anthropic Claude
+- **Model**: Claude 3.5 Sonnet (configurable)
 - **Input**: Document content + file type
 - **Output**: Normalized payroll data in universal schema
 - **Features**: 
@@ -165,9 +165,9 @@ interface NormalizedPayrollData {
 ## Environment Variables
 
 ```env
-# OpenAI
-OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-4o
+# Anthropic Claude
+ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
 
 # Storage
 STORAGE_TYPE=local|vercel-blob|s3
