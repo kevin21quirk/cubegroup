@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Mail, Inbox, Archive, Settings } from 'lucide-react'
+import Link from 'next/link'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -16,10 +17,12 @@ export default function EmailsPage() {
             Monitor and manage incoming payroll emails
           </p>
         </div>
-        <Button variant="outline">
-          <Settings className="mr-2 h-4 w-4" />
-          Configure Gmail
-        </Button>
+        <Link href="/dashboard/settings">
+          <Button variant="outline">
+            <Settings className="mr-2 h-4 w-4" />
+            Configure Gmail
+          </Button>
+        </Link>
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
@@ -78,10 +81,12 @@ export default function EmailsPage() {
               Connect your Gmail account to automatically detect and process payroll emails with attachments
             </p>
             <div className="space-y-4">
-              <Button>
-                <Mail className="mr-2 h-4 w-4" />
-                Connect Gmail Account
-              </Button>
+              <Link href="/dashboard/settings">
+                <Button>
+                  <Mail className="mr-2 h-4 w-4" />
+                  Connect Gmail Account
+                </Button>
+              </Link>
               <div className="text-xs text-muted-foreground">
                 <p>You&apos;ll need to configure:</p>
                 <ul className="mt-2 space-y-1">

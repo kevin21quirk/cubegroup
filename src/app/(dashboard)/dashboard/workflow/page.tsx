@@ -21,19 +21,28 @@ export default async function WorkflowPage({ searchParams }: WorkflowPageProps) 
   }) : null
 
   // Get workflow data (filtered by company if selected)
-  const [submissions, invoices, payments, emailImports] = await Promise.all([
+  let emailImports: any[] = []
+  
+  const [submissions, invoices, payments] = await Promise.all([
     getPayrollSubmissions(),
     getInvoices(),
     getPayments(),
-    prisma.emailImport.findMany({
+  ])
+
+  // Try to get email imports (table may not exist yet)
+  try {
+    emailImports = await prisma.emailImport.findMany({
       where: companyId ? {
         payrollSubmission: {
           companyId,
         },
       } : undefined,
       orderBy: { createdAt: 'desc' },
-    }),
-  ])
+    })
+  } catch (error) {
+    console.error('Email imports query error:', error)
+    // Table doesn't exist yet, use empty array
+  }
 
   // Filter by company if selected
   const filteredSubmissions = companyId 
@@ -59,8 +68,8 @@ export default async function WorkflowPage({ searchParams }: WorkflowPageProps) 
   // Validation
   const validated = filteredSubmissions.filter(s => 
     s.workflowState !== 'EMAIL_RECEIVED' && 
-    s.workflowState !== 'ATTACHMENT_DOWNLOADED' && 
-    s.workflowState !== 'AI_PROCESSING'
+    s.workflowState !== ('ATTACHMENT_DOWNLOADED' as any) && 
+    s.workflowState !== ('AI_PROCESSING' as any)
   )
   steps[2].count = validated.length
   steps[2].status = validated.length > 0 ? 'completed' :
