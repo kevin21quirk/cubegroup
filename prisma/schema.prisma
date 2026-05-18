@@ -14,14 +14,39 @@ enum UserRole {
 
 enum WorkflowState {
   EMAIL_RECEIVED
-  PROCESSING
-  AWAITING_VALIDATION
+  ATTACHMENT_DOWNLOADED
+  AI_PROCESSING
+  VALIDATION_FAILED
+  AWAITING_REVIEW
+  SPREADSHEET_GENERATED
+  SAVED_TO_SERVER
   READY_FOR_INVOICE
   INVOICE_SENT
   AWAITING_PAYMENT
   PAYMENT_RECEIVED
   UMBRELLA_INVOICE_SENT
   COMPLETED
+  FAILED
+}
+
+enum ProcessingStatus {
+  PENDING
+  DOWNLOADING
+  PROCESSING
+  EXTRACTING
+  VALIDATING
+  GENERATING
+  UPLOADING
+  COMPLETED
+  FAILED
+  RETRY_NEEDED
+}
+
+enum AttachmentStatus {
+  PENDING
+  DOWNLOADED
+  PROCESSING
+  EXTRACTED
   FAILED
 }
 
@@ -97,6 +122,13 @@ model Company {
   onboardingStatus      String                @default("Pending")
   riskNotes             String?
   complianceNotes       String?
+  
+  // Email processing configuration
+  emailDomains          String[]              @default([])
+  emailKeywords         String[]              @default([])
+  spreadsheetTemplate   String?
+  remoteFolder          String?
+  
   createdById           String
   createdBy             User                  @relation("CreatedBy", fields: [createdById], references: [id])
   createdAt             DateTime              @default(now())
@@ -226,12 +258,14 @@ model PayrollSubmission {
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
   
-  payrollEntries    PayrollEntry[]
-  documents         Document[]
-  invoices          Invoice[]
-  tasks             Task[]
-  notes             Note[]
-  activities        Activity[]
+  payrollEntries        PayrollEntry[]
+  documents             Document[]
+  invoices              Invoice[]
+  tasks                 Task[]
+  notes                 Note[]
+  activities            Activity[]
+  validationErrorsList  ValidationError[]
+  generatedSpreadsheet  GeneratedSpreadsheet?
   
   @@index([companyId])
   @@index([workflowState])
@@ -408,19 +442,27 @@ model EmailImport {
   receivedAt        DateTime
   hasAttachments    Boolean             @default(false)
   attachmentCount   Int                 @default(0)
+  processingStatus  ProcessingStatus    @default(PENDING)
   isProcessed       Boolean             @default(false)
   processedAt       DateTime?
   detectedCompany   String?
   detectedWeek      String?
+  errorMessage      String?
+  retryCount        Int                 @default(0)
+  lastRetryAt       DateTime?
   metadata          Json?
   createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
   
   payrollSubmission PayrollSubmission?
+  attachments       Attachment[]
+  workflowLogs      WorkflowLog[]
   
   @@index([messageId])
   @@index([from])
   @@index([receivedAt])
   @@index([isProcessed])
+  @@index([processingStatus])
 }
 
 model Task {
@@ -508,4 +550,97 @@ model SystemConfig {
   updatedAt       DateTime  @updatedAt
   
   @@index([key])
+}
+
+model Attachment {
+  id                String            @id @default(cuid())
+  emailImportId     String
+  emailImport       EmailImport       @relation(fields: [emailImportId], references: [id], onDelete: Cascade)
+  
+  filename          String
+  originalFilename  String
+  fileSize          Int
+  mimeType          String
+  documentType      DocumentType
+  
+  storageUrl        String?
+  storagePath       String?
+  localPath         String?
+  
+  status            AttachmentStatus  @default(PENDING)
+  extractedData     Json?
+  extractedText     String?
+  errorMessage      String?
+  
+  isProcessed       Boolean           @default(false)
+  processedAt       DateTime?
+  downloadedAt      DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  @@index([emailImportId])
+  @@index([status])
+  @@index([documentType])
+}
+
+model ValidationError {
+  id                    String              @id @default(cuid())
+  payrollSubmissionId   String
+  payrollSubmission     PayrollSubmission   @relation(fields: [payrollSubmissionId], references: [id], onDelete: Cascade)
+  
+  errorType             String
+  errorMessage          String
+  fieldName             String?
+  rowIndex              Int?
+  severity              String              @default("ERROR")
+  isResolved            Boolean             @default(false)
+  resolvedAt            DateTime?
+  resolvedBy            String?
+  metadata              Json?
+  createdAt             DateTime            @default(now())
+  
+  @@index([payrollSubmissionId])
+  @@index([isResolved])
+  @@index([severity])
+}
+
+model GeneratedSpreadsheet {
+  id                    String              @id @default(cuid())
+  payrollSubmissionId   String              @unique
+  payrollSubmission     PayrollSubmission   @relation(fields: [payrollSubmissionId], references: [id], onDelete: Cascade)
+  
+  filename              String
+  fileSize              Int?
+  localPath             String?
+  remotePath            String?
+  storageUrl            String?
+  
+  isUploaded            Boolean             @default(false)
+  uploadedAt            DateTime?
+  uploadError           String?
+  
+  templateUsed          String?
+  generationMetadata    Json?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  
+  @@index([payrollSubmissionId])
+  @@index([isUploaded])
+}
+
+model WorkflowLog {
+  id                String        @id @default(cuid())
+  emailImportId     String?
+  emailImport       EmailImport?  @relation(fields: [emailImportId], references: [id], onDelete: Cascade)
+  
+  state             WorkflowState
+  message           String
+  metadata          Json?
+  errorDetails      String?
+  duration          Int?
+  createdAt         DateTime      @default(now())
+  
+  @@index([emailImportId])
+  @@index([state])
+  @@index([createdAt])
 }
