@@ -27,9 +27,9 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-blue-800 dark:text-blue-200">
-            For security reasons, API keys and sensitive credentials must be configured in your <code className="bg-blue-100 dark:bg-blue-900 px-1 py-0.5 rounded">.env</code> file. 
+            For security reasons, API keys and sensitive credentials must be configured in your <strong>Vercel Project Settings → Environment Variables</strong>. 
             The fields below are read-only and show the current configuration status. 
-            To update settings, edit your <code className="bg-blue-100 dark:bg-blue-900 px-1 py-0.5 rounded">.env</code> file and redeploy the application.
+            To update settings, add or edit environment variables in your Vercel dashboard and redeploy.
           </p>
         </CardContent>
       </Card>
@@ -52,7 +52,7 @@ export default function SettingsPage() {
                 disabled
               />
               <p className="text-xs text-muted-foreground">
-                Configure in your .env file: DATABASE_URL
+                Add DATABASE_URL in Vercel Environment Variables
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -60,7 +60,7 @@ export default function SettingsPage() {
                 Not Configured
               </Badge>
               <span className="text-sm text-muted-foreground">
-                Add DATABASE_URL to .env and run: npm run db:push
+                Configure in Vercel Environment Variables
               </span>
             </div>
           </CardContent>
@@ -96,7 +96,7 @@ export default function SettingsPage() {
                 Disabled (Demo Mode)
               </Badge>
               <span className="text-sm text-muted-foreground">
-                Sign up at clerk.com and add keys to .env
+                Sign up at clerk.com and add keys to Vercel Environment Variables
               </span>
             </div>
           </CardContent>
