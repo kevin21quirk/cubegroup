@@ -20,8 +20,18 @@ export async function RecentSubmissions() {
     const colors: Record<string, string> = {
       COMPLETED: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
       FAILED: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
-      PROCESSING: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-      AWAITING_VALIDATION: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+      EMAIL_RECEIVED: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+      ATTACHMENT_DOWNLOADED: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+      AI_PROCESSING: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
+      VALIDATION_FAILED: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+      AWAITING_REVIEW: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+      SPREADSHEET_GENERATED: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300',
+      SAVED_TO_SERVER: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-300',
+      READY_FOR_INVOICE: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-300',
+      INVOICE_SENT: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+      AWAITING_PAYMENT: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
+      PAYMENT_RECEIVED: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+      UMBRELLA_INVOICE_SENT: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
     }
     return colors[state] || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
   }

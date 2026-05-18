@@ -13,8 +13,8 @@ export default async function PayrollPage() {
   const submissions = await getPayrollSubmissions()
   
   const totalSubmissions = submissions.length
-  const pendingValidation = submissions.filter(s => s.workflowState === 'AWAITING_VALIDATION').length
-  const processing = submissions.filter(s => s.workflowState === 'PROCESSING').length
+  const pendingValidation = submissions.filter(s => s.workflowState === 'VALIDATION_FAILED' || s.workflowState === 'AWAITING_REVIEW').length
+  const processing = submissions.filter(s => s.workflowState === 'AI_PROCESSING' || s.workflowState === 'ATTACHMENT_DOWNLOADED').length
   const completed = submissions.filter(s => s.workflowState === 'COMPLETED').length
   return (
     <div className="space-y-6">

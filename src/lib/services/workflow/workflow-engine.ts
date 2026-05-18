@@ -7,15 +7,19 @@ export class WorkflowEngine {
 
   constructor() {
     this.validTransitions = new Map([
-      [WorkflowState.EMAIL_RECEIVED, [WorkflowState.PROCESSING, WorkflowState.FAILED]],
-      [WorkflowState.PROCESSING, [WorkflowState.AWAITING_VALIDATION, WorkflowState.FAILED]],
-      [WorkflowState.AWAITING_VALIDATION, [WorkflowState.READY_FOR_INVOICE, WorkflowState.PROCESSING, WorkflowState.FAILED]],
+      [WorkflowState.EMAIL_RECEIVED, [WorkflowState.ATTACHMENT_DOWNLOADED, WorkflowState.FAILED]],
+      [WorkflowState.ATTACHMENT_DOWNLOADED, [WorkflowState.AI_PROCESSING, WorkflowState.FAILED]],
+      [WorkflowState.AI_PROCESSING, [WorkflowState.VALIDATION_FAILED, WorkflowState.AWAITING_REVIEW, WorkflowState.SPREADSHEET_GENERATED, WorkflowState.FAILED]],
+      [WorkflowState.VALIDATION_FAILED, [WorkflowState.AWAITING_REVIEW, WorkflowState.AI_PROCESSING, WorkflowState.FAILED]],
+      [WorkflowState.AWAITING_REVIEW, [WorkflowState.SPREADSHEET_GENERATED, WorkflowState.AI_PROCESSING, WorkflowState.FAILED]],
+      [WorkflowState.SPREADSHEET_GENERATED, [WorkflowState.SAVED_TO_SERVER, WorkflowState.FAILED]],
+      [WorkflowState.SAVED_TO_SERVER, [WorkflowState.READY_FOR_INVOICE, WorkflowState.COMPLETED]],
       [WorkflowState.READY_FOR_INVOICE, [WorkflowState.INVOICE_SENT, WorkflowState.FAILED]],
       [WorkflowState.INVOICE_SENT, [WorkflowState.AWAITING_PAYMENT, WorkflowState.FAILED]],
       [WorkflowState.AWAITING_PAYMENT, [WorkflowState.PAYMENT_RECEIVED, WorkflowState.FAILED]],
-      [WorkflowState.PAYMENT_RECEIVED, [WorkflowState.UMBRELLA_INVOICE_SENT, WorkflowState.FAILED]],
+      [WorkflowState.PAYMENT_RECEIVED, [WorkflowState.UMBRELLA_INVOICE_SENT, WorkflowState.COMPLETED]],
       [WorkflowState.UMBRELLA_INVOICE_SENT, [WorkflowState.COMPLETED, WorkflowState.FAILED]],
-      [WorkflowState.FAILED, [WorkflowState.PROCESSING]],
+      [WorkflowState.FAILED, [WorkflowState.EMAIL_RECEIVED, WorkflowState.AI_PROCESSING]],
       [WorkflowState.COMPLETED, []],
     ])
   }

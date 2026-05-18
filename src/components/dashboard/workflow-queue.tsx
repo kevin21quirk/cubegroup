@@ -13,8 +13,12 @@ export async function WorkflowQueue() {
 
   const stateLabels: Record<string, string> = {
     EMAIL_RECEIVED: 'Email Received',
-    PROCESSING: 'Processing',
-    AWAITING_VALIDATION: 'Awaiting Validation',
+    ATTACHMENT_DOWNLOADED: 'Attachment Downloaded',
+    AI_PROCESSING: 'AI Processing',
+    VALIDATION_FAILED: 'Validation Failed',
+    AWAITING_REVIEW: 'Awaiting Review',
+    SPREADSHEET_GENERATED: 'Spreadsheet Generated',
+    SAVED_TO_SERVER: 'Saved to Server',
     READY_FOR_INVOICE: 'Ready for Invoice',
     INVOICE_SENT: 'Invoice Sent',
     AWAITING_PAYMENT: 'Awaiting Payment',

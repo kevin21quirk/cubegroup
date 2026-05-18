@@ -15,7 +15,7 @@ export async function DashboardStats() {
   ] = await Promise.all([
     prisma.payrollSubmission.count(),
     prisma.payrollSubmission.count({
-      where: { workflowState: 'AWAITING_VALIDATION' },
+      where: { workflowState: { in: ['VALIDATION_FAILED', 'AWAITING_REVIEW'] } },
     }),
     prisma.invoice.count({
       where: { paymentStatus: 'UNPAID' },
