@@ -110,22 +110,24 @@ export async function getCompany(id: string) {
 
 export async function updateCompany(id: string, formData: FormData) {
   const name = formData.get('name') as string
-  const industry = formData.get('industry') as string
-  const billingAddress = formData.get('billingAddress') as string
-  const isActive = formData.get('isActive') === 'true'
 
   await prisma.company.update({
     where: { id },
     data: {
       name,
-      industry,
-      billingAddress,
-      isActive,
+      industry:            str(formData, 'industry'),
+      billingAddress:      str(formData, 'billingAddress'),
+      billingCity:         str(formData, 'billingCity'),
+      billingPostcode:     str(formData, 'billingPostcode'),
+      paymentTerms:        parseInt(str(formData, 'paymentTerms') || '30', 10),
+      isActive:            formData.get('isActive') === 'true',
+      accountingSystem:    str(formData, 'accountingSystem') || 'None',
     },
   })
 
   revalidatePath('/dashboard/companies')
   revalidatePath(`/dashboard/companies/${id}`)
+  redirect(`/dashboard/companies/${id}/edit`)
 }
 
 export async function deleteCompany(id: string) {

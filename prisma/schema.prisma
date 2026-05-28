@@ -140,6 +140,16 @@ model Company {
   companyType           String?               // SoleTrader/Partnership/LimitedCompany/Public
   verificationNumber    String?
 
+  // Accounting system integration
+  accountingSystem      String                @default("None") // Xero | QuickBooks | BrightPay | MoneySoft | None
+  // Xero
+  xeroTenantId          String?
+  xeroConnectionId      String?
+  xeroRefreshToken      String?               // store encrypted in production
+  // QuickBooks
+  quickbooksRealmId     String?
+  quickbooksRefreshToken String?              // store encrypted in production
+
   createdById           String
   createdBy             User                  @relation("CreatedBy", fields: [createdById], references: [id])
   createdAt             DateTime              @default(now())
@@ -152,6 +162,7 @@ model Company {
   workers               Worker[]
   cisSubcontractors     CisSubcontractor[]
   payrollSubmissions    PayrollSubmission[]
+  accountingExports     AccountingExport[]
   invoices              Invoice[]
   feeStructures         FeeStructure[]
   documents             Document[]
@@ -332,6 +343,7 @@ model PayrollSubmission {
   payrollEntries        PayrollEntry[]
   payrollChanges        PayrollChange[]
   cisTransactions       CisTransaction[]
+  accountingExports     AccountingExport[]
   documents             Document[]
   invoices              Invoice[]
   tasks                 Task[]
@@ -489,6 +501,31 @@ model CisTransaction {
   @@index([payrollSubmissionId])
   @@index([workerId])
   @@index([cisSubcontractorId])
+}
+
+// Tracks each push to Xero or QuickBooks
+model AccountingExport {
+  id                    String              @id @default(cuid())
+  companyId             String
+  company               Company             @relation(fields: [companyId], references: [id])
+  payrollSubmissionId   String?
+  payrollSubmission     PayrollSubmission?  @relation(fields: [payrollSubmissionId], references: [id])
+
+  accountingSystem      String              // Xero | QuickBooks
+  exportType            String              // Invoice | Bill | Contact | JournalEntry
+  externalId            String?             // ID returned by Xero/QB
+  externalRef           String?             // Invoice/Bill number in Xero/QB
+  status                String              @default("PENDING") // PENDING | SUCCESS | FAILED
+  exportedAt            DateTime?
+  errorMessage          String?
+  metadata              Json?
+
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  @@index([companyId])
+  @@index([payrollSubmissionId])
+  @@index([accountingSystem, status])
 }
 
 model Invoice {
