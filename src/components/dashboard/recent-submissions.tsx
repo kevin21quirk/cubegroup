@@ -8,20 +8,11 @@ import Link from 'next/link'
 export const dynamic = 'force-dynamic'
 
 export async function RecentSubmissions() {
-  let submissions: any[] = []
-  
-  try {
-    submissions = await prisma.payrollSubmission.findMany({
-      take: 10,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        company: true,
-      },
-    })
-  } catch (error) {
-    console.error('Recent submissions error:', error)
-    // Return empty array if database schema mismatch
-  }
+  const submissions = await prisma.payrollSubmission.findMany({
+    take: 10,
+    orderBy: { createdAt: 'desc' },
+    include: { company: true },
+  })
 
   const getStatusColor = (state: string) => {
     const colors: Record<string, string> = {

@@ -10,9 +10,10 @@ import { EmailRetryButton } from '@/components/emails/email-retry-button'
 
 export const dynamic = 'force-dynamic'
 
-export default async function EmailDetailPage({ params }: { params: { emailId: string } }) {
+export default async function EmailDetailPage({ params }: { params: Promise<{ emailId: string }> }) {
+  const { emailId } = await params
   const email = await prisma.emailImport.findUnique({
-    where: { id: params.emailId },
+    where: { id: emailId },
     include: {
       attachments: true,
       workflowLogs: { orderBy: { createdAt: 'asc' } },

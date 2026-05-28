@@ -3,11 +3,12 @@ import { prisma } from '@/lib/prisma'
 
 export async function POST(
   _req: NextRequest,
-  { params }: { params: { emailId: string } }
+  { params }: { params: Promise<{ emailId: string }> }
 ) {
+  const { emailId } = await params
   try {
     const email = await prisma.emailImport.findUnique({
-      where: { id: params.emailId },
+      where: { id: emailId },
     })
 
     if (!email) {
@@ -15,7 +16,7 @@ export async function POST(
     }
 
     await prisma.emailImport.update({
-      where: { id: params.emailId },
+      where: { id: emailId },
       data: {
         processingStatus: 'PENDING',
         errorMessage: null,
@@ -27,7 +28,7 @@ export async function POST(
     // Log retry in workflow
     await prisma.workflowLog.create({
       data: {
-        emailImportId: params.emailId,
+        emailImportId: emailId,
         state: 'EMAIL_RECEIVED',
         message: `Manual retry triggered (attempt ${email.retryCount + 1})`,
       },

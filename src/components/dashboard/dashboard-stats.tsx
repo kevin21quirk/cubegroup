@@ -7,34 +7,21 @@ import { formatCurrency } from '@/lib/utils'
 export const dynamic = 'force-dynamic'
 
 export async function DashboardStats() {
-  let totalSubmissions = 0
-  let pendingValidation = 0
-  let awaitingPayment = 0
-  let unpaidAmount = 0
+  const [totalSubmissions, pendingValidation, awaitingPayment, unpaidAggregate] = await Promise.all([
+    prisma.payrollSubmission.count(),
+    prisma.payrollSubmission.count({
+      where: { workflowState: { in: ['VALIDATION_FAILED', 'AWAITING_REVIEW'] } },
+    }),
+    prisma.invoice.count({
+      where: { paymentStatus: 'UNPAID' },
+    }),
+    prisma.invoice.aggregate({
+      where: { paymentStatus: { in: ['UNPAID', 'PARTIAL'] } },
+      _sum: { totalAmount: true },
+    }),
+  ])
 
-  try {
-    const results = await Promise.all([
-      prisma.payrollSubmission.count(),
-      prisma.payrollSubmission.count({
-        where: { workflowState: { in: ['VALIDATION_FAILED' as any, 'AWAITING_REVIEW' as any] } },
-      }),
-      prisma.invoice.count({
-        where: { paymentStatus: 'UNPAID' },
-      }),
-      prisma.invoice.aggregate({
-        where: { paymentStatus: { in: ['UNPAID', 'PARTIAL'] } },
-        _sum: { totalAmount: true },
-      }),
-    ])
-    
-    totalSubmissions = results[0]
-    pendingValidation = results[1]
-    awaitingPayment = results[2]
-    unpaidAmount = results[3]._sum.totalAmount || 0
-  } catch (error) {
-    console.error('Dashboard stats error:', error)
-    // Return zeros if database schema mismatch
-  }
+  const unpaidAmount = unpaidAggregate._sum.totalAmount ?? 0
 
   const stats = [
     {
