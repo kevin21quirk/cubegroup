@@ -141,6 +141,30 @@ export default function NewCompanyPage() {
           </CardContent>
         </Card>
 
+        {/* Accounting System */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Accounting System</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-1.5">
+                <label htmlFor="accountingSystem" className="text-sm font-medium">System used by this company</label>
+                <select id="accountingSystem" name="accountingSystem" className={sel}>
+                  <option value="None">None / Not set</option>
+                  <option value="Xero">Xero</option>
+                  <option value="QuickBooks">QuickBooks</option>
+                  <option value="BrightPay">BrightPay (manual export)</option>
+                  <option value="MoneySoft">MoneySoft (manual export)</option>
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  Once created, go to Edit Company to connect Xero / QuickBooks via OAuth.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Email Processing */}
         <Card>
           <CardHeader className="pb-3"><CardTitle className="text-base">Email Processing Config</CardTitle></CardHeader>

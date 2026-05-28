@@ -45,6 +45,8 @@ export async function createCompany(formData: FormData) {
       // Email processing
       emailDomains,
       remoteFolder:        str(formData, 'remoteFolder'),
+      // Accounting
+      accountingSystem:    str(formData, 'accountingSystem') || 'None',
       isActive: true,
       createdById: firstUser.id,
       contacts: {
@@ -110,17 +112,40 @@ export async function getCompany(id: string) {
 
 export async function updateCompany(id: string, formData: FormData) {
   const name = formData.get('name') as string
+  if (!name?.trim()) throw new Error('Company name is required')
+
+  const emailDomainsRaw = str(formData, 'emailDomains')
+  const emailDomains = emailDomainsRaw
+    ? emailDomainsRaw.split(',').map(d => d.trim()).filter(Boolean)
+    : undefined
 
   await prisma.company.update({
     where: { id },
     data: {
-      name,
+      name:                name.trim(),
+      registrationNumber:  str(formData, 'registrationNumber'),
+      vatNumber:           str(formData, 'vatNumber'),
       industry:            str(formData, 'industry'),
+      companyType:         str(formData, 'companyType'),
+      payrollFrequency:    str(formData, 'payrollFrequency') || 'Weekly',
       billingAddress:      str(formData, 'billingAddress'),
       billingCity:         str(formData, 'billingCity'),
       billingPostcode:     str(formData, 'billingPostcode'),
+      billingCountry:      str(formData, 'billingCountry') || 'United Kingdom',
       paymentTerms:        parseInt(str(formData, 'paymentTerms') || '30', 10),
       isActive:            formData.get('isActive') === 'true',
+      // Agency
+      agencyName:          str(formData, 'agencyName'),
+      agencyBranch:        str(formData, 'agencyBranch'),
+      agencyRef:           str(formData, 'agencyRef'),
+      // CIS
+      cisRegistered:       formData.get('cisRegistered') === 'true',
+      uniqueTaxRef:        str(formData, 'uniqueTaxRef'),
+      verificationNumber:  str(formData, 'verificationNumber'),
+      // Email processing
+      ...(emailDomains !== undefined ? { emailDomains } : {}),
+      remoteFolder:        str(formData, 'remoteFolder'),
+      // Accounting
       accountingSystem:    str(formData, 'accountingSystem') || 'None',
     },
   })
