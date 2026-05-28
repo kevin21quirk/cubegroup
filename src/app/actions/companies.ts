@@ -4,39 +4,58 @@ import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
+function str(fd: FormData, key: string): string | undefined {
+  const v = fd.get(key) as string | null
+  return v && v.trim() !== '' ? v.trim() : undefined
+}
+
 export async function createCompany(formData: FormData) {
   const name = formData.get('name') as string
-  const email = formData.get('email') as string
-  const phone = formData.get('phone') as string
-  const billingAddress = formData.get('billingAddress') as string
-  const industry = formData.get('industry') as string
+  if (!name?.trim()) throw new Error('Company name is required')
 
-  if (!name) {
-    throw new Error('Company name is required')
-  }
-
-  // Get the first user as creator (temporary - should use auth)
   const firstUser = await prisma.user.findFirst()
-  if (!firstUser) {
-    throw new Error('No users found in system')
-  }
+  if (!firstUser) throw new Error('No users found in system')
 
-  const company = await prisma.company.create({
+  const emailDomainsRaw = str(formData, 'emailDomains')
+  const emailDomains = emailDomainsRaw
+    ? emailDomainsRaw.split(',').map(d => d.trim()).filter(Boolean)
+    : []
+
+  await prisma.company.create({
     data: {
-      name,
-      industry,
-      billingAddress,
+      name: name.trim(),
+      registrationNumber:  str(formData, 'registrationNumber'),
+      vatNumber:           str(formData, 'vatNumber'),
+      industry:            str(formData, 'industry'),
+      companyType:         str(formData, 'companyType'),
+      payrollFrequency:    str(formData, 'payrollFrequency') || 'Weekly',
+      billingAddress:      str(formData, 'billingAddress'),
+      billingCity:         str(formData, 'billingCity'),
+      billingPostcode:     str(formData, 'billingPostcode'),
+      billingCountry:      str(formData, 'billingCountry') || 'United Kingdom',
+      paymentTerms:        parseInt(str(formData, 'paymentTerms') || '30', 10),
+      // Agency
+      agencyName:          str(formData, 'agencyName'),
+      agencyBranch:        str(formData, 'agencyBranch'),
+      agencyRef:           str(formData, 'agencyRef'),
+      // CIS
+      cisRegistered:       formData.get('cisRegistered') === 'true',
+      uniqueTaxRef:        str(formData, 'uniqueTaxRef'),
+      verificationNumber:  str(formData, 'verificationNumber'),
+      // Email processing
+      emailDomains,
+      remoteFolder:        str(formData, 'remoteFolder'),
       isActive: true,
       createdById: firstUser.id,
-      contacts: email ? {
+      contacts: {
         create: {
           firstName: 'Primary',
-          lastName: 'Contact',
-          email,
-          phone,
+          lastName:  'Contact',
+          email:     str(formData, 'email') || `contact@${name.replace(/\s+/g, '').toLowerCase()}.com`,
+          phone:     str(formData, 'phone'),
           isPrimary: true,
         },
-      } : undefined,
+      },
     },
   })
 

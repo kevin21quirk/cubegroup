@@ -128,7 +128,18 @@ model Company {
   emailKeywords         String[]              @default([])
   spreadsheetTemplate   String?
   remoteFolder          String?
-  
+
+  // Agency / branch reference (used on contractor import template)
+  agencyName            String?
+  agencyBranch          String?
+  agencyRef             String?
+
+  // CIS registration
+  cisRegistered         Boolean               @default(false)
+  uniqueTaxRef          String?               // UTR
+  companyType           String?               // SoleTrader/Partnership/LimitedCompany/Public
+  verificationNumber    String?
+
   createdById           String
   createdBy             User                  @relation("CreatedBy", fields: [createdById], references: [id])
   createdAt             DateTime              @default(now())
@@ -139,6 +150,7 @@ model Company {
   
   contacts              CompanyContact[]
   workers               Worker[]
+  cisSubcontractors     CisSubcontractor[]
   payrollSubmissions    PayrollSubmission[]
   invoices              Invoice[]
   feeStructures         FeeStructure[]
@@ -194,48 +206,107 @@ model UmbrellaCompany {
 }
 
 model Worker {
-  id                String          @id @default(cuid())
-  companyId         String
-  company           Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  
-  // Basic Info
-  contractorType    String?         // Company/Subcontractor
-  firstName         String
-  lastName          String
-  tradingName       String?
-  
-  // Contact Details
-  email             String?
-  phone             String?
-  addressLine1      String?
-  addressLine2      String?
-  city              String?
-  postCode          String?
-  
-  // Tax & Employment
-  nationalInsurance String?
-  utrNumber         String?
-  cisStatus         String?         // Gross/Net/Not Registered
-  
-  // Banking
-  bankName          String?
-  bankAccountNumber String?
-  bankSortCode      String?
-  paymentFrequency  String?         // Weekly/Monthly
-  
-  // Legacy fields
-  employeeNumber    String?
-  department        String?
-  isActive          Boolean         @default(true)
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  
-  payrollEntries    PayrollEntry[]
-  
-  @@unique([companyId, email])
+  id                      String          @id @default(cuid())
+  companyId               String
+  company                 Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // --- Personal Details (Contractor Import Template) ---
+  title                   String?         // Mr/Mrs/Ms/Dr/Miss/Prof
+  firstName               String
+  middleNames             String?
+  lastName                String
+  gender                  String?         // Male/Female/Other
+  dateOfBirth             DateTime?
+  nationality             String?
+
+  // --- Contact ---
+  mobile                  String?
+  phone                   String?
+  email                   String?
+
+  // --- Address ---
+  addressLine1            String?
+  addressLine2            String?
+  addressLine3            String?
+  town                    String?
+  county                  String?
+  livingCountry           String?         @default("United Kingdom")
+  postCode                String?
+
+  // --- Banking ---
+  nameOnBankAccount       String?
+  bankName                String?
+  bankAccountNumber       String?
+  bankSortCode            String?
+  buildingSocietyNo       String?
+  nonUkBank               Boolean         @default(false)
+
+  // --- Third Party Bank Account ---
+  thirdPartyBankAccount   Boolean         @default(false)
+  thirdPartyAccountName   String?
+  thirdPartyAddress1      String?
+  thirdPartyTown          String?
+  thirdPartyPostcode      String?
+  thirdPartyCountry       String?
+  thirdPartyRelationship  String?
+  thirdPartyContactNo     String?
+  thirdPartyDob           DateTime?
+
+  // --- Tax / Starter Info ---
+  nationalInsurance       String?         // NI Number
+  starterDeclaration      String?         // A/B/C
+  p45GrossForTax          Float?
+  p45TaxDeducted          Float?
+  startDate               DateTime?
+  payFrequency            String?         // Weekly/Fortnightly/Monthly
+  niCategory              String?         // A/B/C/H/J/M/Z
+  taxCode                 String?
+  taxBasis                String?         // Cumulative/Week1Month1
+
+  // --- Commercial / Agency ---
+  product                 String?         // PAYE/CIS/Umbrella
+  agency                  String?
+  branch                  String?
+  agencyRef               String?
+  jobDescription          String?
+  holidayPayRule          String?
+  applyHolidayEmploymentCosts Boolean     @default(false)
+  derogationContract      Boolean         @default(false)
+  derogationSpread        Boolean         @default(false)
+  serviceUsed             String?
+  payeAmount              Float?
+  paymentTerms            String?
+  paymentMethod           String?         // BACS/CHAPS/Cheque/Cash
+  loanPlan                String?
+
+  // --- Compliance ---
+  pensionApplicable       Boolean         @default(false)
+  apprenticeshipLevy      Boolean         @default(false)
+  gdpr                    Boolean         @default(false)
+  minimumMarginCharge     Float?
+  agencyMarginRule        String?
+
+  // --- CIS specific ---
+  utrNumber               String?
+  cisStatus               String?         // Gross/Net/NotRegistered
+  tradingName             String?
+  contractorType          String?         // PAYE/CIS/Umbrella
+
+  // --- Legacy / Internal ---
+  employeeNumber          String?
+  department              String?
+  isActive                Boolean         @default(true)
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+
+  payrollEntries          PayrollEntry[]
+  payrollChanges          PayrollChange[]
+  cisTransactions         CisTransaction[]
+
   @@index([companyId])
   @@index([lastName, firstName])
   @@index([nationalInsurance])
+  @@index([email])
 }
 
 model PayrollSubmission {
@@ -259,6 +330,8 @@ model PayrollSubmission {
   updatedAt         DateTime        @updatedAt
   
   payrollEntries        PayrollEntry[]
+  payrollChanges        PayrollChange[]
+  cisTransactions       CisTransaction[]
   documents             Document[]
   invoices              Invoice[]
   tasks                 Task[]
@@ -281,14 +354,33 @@ model PayrollEntry {
   worker                Worker?             @relation(fields: [workerId], references: [id])
   umbrellaCompanyId     String?
   umbrellaCompany       UmbrellaCompany?    @relation(fields: [umbrellaCompanyId], references: [id])
-  
-  workerName            String
-  hoursWorked           Float
-  hourlyRate            Float
-  grossPay              Float
+
+  // Weekly Payroll Template (Sheet 1) columns
+  employeeId            String?             // Employee ID / NI Number
+  workerName            String              // kept for backwards compat
+  firstName             String?
+  lastName              String?
+  isNewStarter          Boolean             @default(false)
+  startDate             DateTime?
+  isLeaver              Boolean             @default(false)
+
+  hoursWorked           Float               @default(0)
+  hourlyRate            Float               @default(0)
+  basicPay              Float               @default(0)
+  overtimeHours         Float               @default(0)
+  overtimeRate          Float               @default(0)
+  overtimePay           Float               @default(0)
+  holidayHours          Float               @default(0)
+  holidayPay            Float               @default(0)
+  statutoryPay          Float               @default(0)  // SSP/SMP/etc
+  totalGrossPay         Float               @default(0)  // sum of all pay elements
+
+  // Internal fee fields
+  grossPay              Float               @default(0)  // same as totalGrossPay, kept for compat
   cubeFee               Float               @default(0)
   umbrellaFee           Float               @default(0)
   netToWorker           Float               @default(0)
+
   department            String?
   projectSite           String?
   payrollWeek           String
@@ -296,10 +388,107 @@ model PayrollEntry {
   rawData               Json?
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
-  
+
   @@index([payrollSubmissionId])
   @@index([workerId])
   @@index([payrollWeek])
+}
+
+// Weekly Payroll Template - Sheet 2: Starters / Leavers / Amendments
+model PayrollChange {
+  id                    String              @id @default(cuid())
+  payrollSubmissionId   String
+  payrollSubmission     PayrollSubmission   @relation(fields: [payrollSubmissionId], references: [id], onDelete: Cascade)
+  workerId              String?
+  worker                Worker?             @relation(fields: [workerId], references: [id])
+
+  employeeId            String?             // Employee ID / NI Number
+  firstName             String?
+  lastName              String?
+  changeType            String              // Starter/Leaver/Amendment
+  effectiveDate         DateTime?
+  newRateOfPay          Float?
+  newJobTitle           String?
+  notes                 String?
+
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  @@index([payrollSubmissionId])
+  @@index([workerId])
+}
+
+// CIS Subcontractor Import Template (Image 4)
+model CisSubcontractor {
+  id                    String              @id @default(cuid())
+  companyId             String
+  company               Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  tradingName           String?
+  subcontractorName     String?
+  firstName             String?
+  middleName            String?
+  surname               String?
+  worksNumber           String?
+
+  addressLine1          String?
+  addressLine2          String?
+  addressLine3          String?
+  addressLine4          String?
+  postcode              String?
+  emailAddress          String?
+  phoneNumber           String?
+
+  department            String?
+  companyType           String?             // SoleTrader/Partnership/LimitedCompany/Public
+  companyReference      String?
+  utrNumber             String?             // Unique Tax Reference
+  nationalInsurance     String?
+  isVatRegistered       Boolean             @default(false)
+  vatNumber             String?
+  verificationNumber    String?
+
+  isActive              Boolean             @default(true)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  cisTransactions       CisTransaction[]
+
+  @@index([companyId])
+  @@index([surname])
+  @@index([utrNumber])
+}
+
+// CIS Transaction Import (Image 2)
+model CisTransaction {
+  id                    String              @id @default(cuid())
+  payrollSubmissionId   String?
+  payrollSubmission     PayrollSubmission?  @relation(fields: [payrollSubmissionId], references: [id])
+  workerId              String?
+  worker                Worker?             @relation(fields: [workerId], references: [id])
+  cisSubcontractorId    String?
+  cisSubcontractor      CisSubcontractor?   @relation(fields: [cisSubcontractorId], references: [id])
+
+  subcontractorName     String
+  grossPay              Float               @default(0)
+  costOfMaterials       Float               @default(0)
+  vat                   Float               @default(0)
+  grossForCisDeduction  Float               @default(0)
+  cisDeduction          Float               @default(0)
+  netPay                Float               @default(0)
+  costToContractor      Float               @default(0)
+
+  periodStart           DateTime?
+  periodEnd             DateTime?
+  payrollWeek           String?
+  taxYear               String?
+
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  @@index([payrollSubmissionId])
+  @@index([workerId])
+  @@index([cisSubcontractorId])
 }
 
 model Invoice {
