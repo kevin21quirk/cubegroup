@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Users, Mail, Phone, Building2 } from 'lucide-react'
+import { Plus, Users, Mail, Phone, Building2, Briefcase, CreditCard } from 'lucide-react'
 import Link from 'next/link'
 import { getWorkers } from '@/app/actions/workers'
 import { formatDate } from '@/lib/utils'
@@ -95,38 +95,50 @@ export default async function WorkersPage() {
               {workers.map((worker) => (
                 <Link key={worker.id} href={`/dashboard/workers/${worker.id}`}>
                   <div className="flex items-center justify-between p-4 rounded-lg border hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer">
-                    <div className="flex items-center gap-4 flex-1">
-                      <div className="p-2 bg-primary/10 rounded-lg">
+                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                      <div className="p-2 bg-primary/10 rounded-lg shrink-0">
                         <Users className="h-5 w-5 text-primary" />
                       </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-medium">{worker.firstName} {worker.lastName}</p>
                           <Badge variant={worker.isActive ? "default" : "secondary"} className="text-xs">
                             {worker.isActive ? 'Active' : 'Inactive'}
                           </Badge>
+                          {(worker as any).cisStatus && (
+                            <Badge variant="outline" className="text-xs">CIS: {(worker as any).cisStatus}</Badge>
+                          )}
                         </div>
-                        <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 mt-1 text-xs text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <Building2 className="h-3 w-3" />
                             <span>{worker.company.name}</span>
                           </div>
+                          {(worker as any).nationalInsurance && (
+                            <div className="flex items-center gap-1">
+                              <CreditCard className="h-3 w-3" />
+                              <span className="font-mono">{(worker as any).nationalInsurance}</span>
+                            </div>
+                          )}
+                          {(worker as any).jobDescription && (
+                            <div className="flex items-center gap-1">
+                              <Briefcase className="h-3 w-3" />
+                              <span className="truncate max-w-[140px]">{(worker as any).jobDescription}</span>
+                            </div>
+                          )}
                           {worker.email && (
                             <div className="flex items-center gap-1">
                               <Mail className="h-3 w-3" />
-                              <span className="truncate max-w-[200px]">{worker.email}</span>
+                              <span className="truncate max-w-[160px]">{worker.email}</span>
                             </div>
                           )}
-                          {worker.phone && (
-                            <div className="flex items-center gap-1">
-                              <Phone className="h-3 w-3" />
-                              <span>{worker.phone}</span>
-                            </div>
+                          {(worker as any).agency && (
+                            <span className="text-muted-foreground/70">via {(worker as any).agency}</span>
                           )}
                         </div>
                       </div>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right shrink-0 ml-4">
                       <p className="text-sm font-medium">{worker._count.payrollEntries} entries</p>
                       <p className="text-xs text-muted-foreground">Added {formatDate(worker.createdAt)}</p>
                     </div>

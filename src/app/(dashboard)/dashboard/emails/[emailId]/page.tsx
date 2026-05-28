@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Paperclip, Clock, Mail, AlertCircle, CheckCircle, FileText } from 'lucide-react'
+import { ArrowLeft, Paperclip, Clock, Mail, AlertCircle, CheckCircle, FileText, Users, BarChart3, Building2 } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
@@ -19,9 +19,16 @@ export default async function EmailDetailPage({ params }: { params: Promise<{ em
       workflowLogs: { orderBy: { createdAt: 'asc' } },
       payrollSubmission: {
         include: {
-          company: { select: { name: true } },
+          company: { select: { name: true, accountingSystem: true } },
           validationErrorsList: true,
           generatedSpreadsheet: true,
+          accountingExports: { orderBy: { createdAt: 'desc' }, take: 5 },
+          payrollEntries: {
+            select: {
+              id: true, firstName: true, lastName: true, workerName: true,
+              hoursWorked: true, totalGrossPay: true, isNewStarter: true, isLeaver: true,
+            },
+          },
         },
       },
     },
@@ -36,6 +43,14 @@ export default async function EmailDetailPage({ params }: { params: Promise<{ em
     EXTRACTED:  'bg-green-100 text-green-700',
     FAILED:     'bg-red-100 text-red-700',
   }
+
+  // Pull AI extraction data from the first successfully extracted attachment
+  const extractedAtt = email.attachments.find(a => a.status === 'EXTRACTED' && a.extractedData)
+  const aiData = extractedAtt?.extractedData as any
+  const aiEntries: any[]  = aiData?.entries  || []
+  const aiWorkers: any[]  = aiData?.workers  || []
+  const docType: string   = aiData?.documentType || ''
+  const confidence: number = aiData?.confidence  || 0
 
   return (
     <div className="space-y-6">
@@ -176,6 +191,54 @@ export default async function EmailDetailPage({ params }: { params: Promise<{ em
 
         {/* Right panel */}
         <div className="space-y-6">
+
+          {/* AI Extraction Summary */}
+          {aiEntries.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <BarChart3 className="h-4 w-4" />
+                  AI Extraction
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-2 bg-muted/50 rounded text-center">
+                    <p className="text-lg font-bold">{aiEntries.length}</p>
+                    <p className="text-xs text-muted-foreground">Payroll rows</p>
+                  </div>
+                  <div className="p-2 bg-muted/50 rounded text-center">
+                    <p className="text-lg font-bold">{aiWorkers.length}</p>
+                    <p className="text-xs text-muted-foreground">Worker profiles</p>
+                  </div>
+                </div>
+                {docType && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Document type</span>
+                    <Badge variant="outline" className="text-xs">{docType}</Badge>
+                  </div>
+                )}
+                {confidence > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Confidence</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${
+                            confidence >= 0.8 ? 'bg-green-500' : confidence >= 0.5 ? 'bg-yellow-500' : 'bg-red-500'
+                          }`}
+                          style={{ width: `${Math.round(confidence * 100)}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-medium">{Math.round(confidence * 100)}%</span>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Payroll Submission */}
           {email.payrollSubmission && (
             <Card>
               <CardHeader>
@@ -184,7 +247,10 @@ export default async function EmailDetailPage({ params }: { params: Promise<{ em
               <CardContent className="space-y-3 text-sm">
                 <div>
                   <p className="text-muted-foreground font-medium">Company</p>
-                  <p>{email.payrollSubmission.company.name}</p>
+                  <p className="flex items-center gap-1.5">
+                    <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                    {email.payrollSubmission.company.name}
+                  </p>
                 </div>
                 <div>
                   <p className="text-muted-foreground font-medium">Payroll Week</p>
@@ -196,6 +262,30 @@ export default async function EmailDetailPage({ params }: { params: Promise<{ em
                     {email.payrollSubmission.workflowState.replace(/_/g, ' ')}
                   </Badge>
                 </div>
+
+                {/* Payroll entries summary */}
+                {email.payrollSubmission.payrollEntries.length > 0 && (
+                  <div>
+                    <p className="text-muted-foreground font-medium mb-1">
+                      Workers ({email.payrollSubmission.payrollEntries.length})
+                    </p>
+                    <div className="max-h-36 overflow-y-auto space-y-1">
+                      {email.payrollSubmission.payrollEntries.map(e => (
+                        <div key={e.id} className="flex items-center justify-between text-xs p-1.5 bg-muted/30 rounded">
+                          <span className="font-medium">
+                            {e.firstName && e.lastName ? `${e.firstName} ${e.lastName}` : e.workerName}
+                            {e.isNewStarter && <span className="ml-1 text-green-600">(New)</span>}
+                            {e.isLeaver    && <span className="ml-1 text-red-600">(Leaver)</span>}
+                          </span>
+                          <span className="text-muted-foreground">
+                            {e.hoursWorked}h · £{e.totalGrossPay?.toFixed(2) ?? '0.00'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {email.payrollSubmission.validationErrorsList.length > 0 && (
                   <div>
                     <p className="text-muted-foreground font-medium mb-1">Validation Errors</p>
@@ -209,15 +299,39 @@ export default async function EmailDetailPage({ params }: { params: Promise<{ em
                     </div>
                   </div>
                 )}
+
                 {email.payrollSubmission.generatedSpreadsheet && (
                   <div>
                     <p className="text-muted-foreground font-medium mb-1">Generated File</p>
                     <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950 rounded">
                       <CheckCircle className="h-4 w-4 text-green-600" />
-                      <span className="text-xs text-green-700">{email.payrollSubmission.generatedSpreadsheet.filename}</span>
+                      <span className="text-xs text-green-700 truncate">{email.payrollSubmission.generatedSpreadsheet.filename}</span>
                     </div>
                   </div>
                 )}
+
+                {/* Accounting exports */}
+                {email.payrollSubmission.accountingExports.length > 0 && (
+                  <div>
+                    <p className="text-muted-foreground font-medium mb-1">Accounting Exports</p>
+                    <div className="space-y-1">
+                      {email.payrollSubmission.accountingExports.map(ex => (
+                        <div key={ex.id} className={`flex items-center justify-between p-2 rounded text-xs ${
+                          ex.status === 'SUCCESS' ? 'bg-green-50 dark:bg-green-950' :
+                          ex.status === 'FAILED'  ? 'bg-red-50 dark:bg-red-950' : 'bg-muted/50'
+                        }`}>
+                          <span className="font-medium">{ex.accountingSystem} – {ex.exportType}</span>
+                          <div className="flex items-center gap-1.5">
+                            {ex.status === 'SUCCESS' && <CheckCircle className="h-3 w-3 text-green-600" />}
+                            {ex.status === 'FAILED'  && <AlertCircle className="h-3 w-3 text-red-600" />}
+                            <span>{ex.externalRef ?? ex.status}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <Link href={`/dashboard/workflow?submissionId=${email.payrollSubmission.id}`}>
                   <Button variant="outline" size="sm" className="w-full mt-2">
                     View in Workflow

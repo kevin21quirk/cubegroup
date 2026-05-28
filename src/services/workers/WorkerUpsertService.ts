@@ -113,7 +113,6 @@ export class WorkerUpsertService {
       bankName:              w.bankName                      || undefined,
       bankAccountNumber:     w.bankAccountNumber             || undefined,
       bankSortCode:          w.bankSortCode                  || undefined,
-      nationalInsuranceCategory: undefined, // niCategory not in Worker
       niCategory:            w.niCategory                   || undefined,
       taxCode:               w.taxCode                       || undefined,
       taxBasis:              w.taxBasis                      || undefined,
