@@ -6,6 +6,8 @@ import { redirect } from 'next/navigation'
 import { getCompanies } from '@/app/actions/companies'
 import { login } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
 async function handleLogin(formData: FormData) {
   'use server'
   
