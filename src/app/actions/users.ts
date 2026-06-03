@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import bcrypt from 'bcryptjs'
 
 export async function createUser(formData: FormData) {
   const firstName = formData.get('firstName') as string
@@ -16,12 +17,14 @@ export async function createUser(formData: FormData) {
     throw new Error('All fields are required')
   }
 
+  const hashedPassword = await bcrypt.hash(password, 12)
+
   await prisma.user.create({
     data: {
       firstName,
       lastName,
       email,
-      password, // In production, hash this password!
+      password: hashedPassword,
       role,
       companyId: companyId || null,
     },
@@ -84,7 +87,7 @@ export async function updateUser(id: string, formData: FormData) {
   }
 
   if (password) {
-    updateData.password = password
+    updateData.password = await bcrypt.hash(password, 12)
   }
 
   await prisma.user.update({

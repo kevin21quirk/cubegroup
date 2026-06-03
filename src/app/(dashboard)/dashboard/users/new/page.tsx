@@ -142,15 +142,6 @@ export default async function NewUserPage() {
         </CardContent>
       </Card>
 
-      <Card className="border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-950/20">
-        <CardHeader>
-          <CardTitle className="text-yellow-800 dark:text-yellow-200">Security Note</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          <p>⚠️ Passwords are currently stored in plain text for demo purposes.</p>
-          <p className="mt-2">In production, passwords should be hashed using bcrypt or similar.</p>
-        </CardContent>
-      </Card>
     </div>
   )
 }

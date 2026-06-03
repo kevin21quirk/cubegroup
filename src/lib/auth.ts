@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { prisma } from './prisma'
+import bcrypt from 'bcryptjs'
 
 export type UserRole = 'SUPER_ADMIN' | 'STAFF'
 
@@ -41,7 +42,11 @@ export async function login(email: string, password: string, companyId?: string)
     include: { staffCompanies: { select: { id: true } } },
   })
 
-  if (dbUser && dbUser.password === password && dbUser.isActive) {
+  const passwordValid = dbUser?.password
+    ? await bcrypt.compare(password, dbUser.password)
+    : false
+
+  if (dbUser && passwordValid && dbUser.isActive) {
     const assignedCompanyIds = dbUser.staffCompanies.map(c => c.id)
     const userData: User = {
       id: dbUser.id,
