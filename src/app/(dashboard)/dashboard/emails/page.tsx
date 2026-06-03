@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { formatDistanceToNow } from 'date-fns'
 import { EmailRetryButton } from '@/components/emails/email-retry-button'
+import { EmailDeleteButton } from '@/components/emails/email-delete-button'
 
 export const dynamic = 'force-dynamic'
 
@@ -217,6 +218,7 @@ export default async function EmailsPage() {
                             {(email.processingStatus === 'FAILED' || email.processingStatus === 'RETRY_NEEDED') && (
                               <EmailRetryButton emailId={email.id} />
                             )}
+                            <EmailDeleteButton emailId={email.id} />
                           </div>
                         </td>
                       </tr>
