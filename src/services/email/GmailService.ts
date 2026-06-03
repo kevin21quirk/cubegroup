@@ -293,7 +293,7 @@ export class GmailService {
       userId: 'me',
       id:     messageId,
       requestBody: {
-        addLabelIds:    [toId],
+        addLabelIds:    [toId, 'INBOX'],   // keep a copy visible in the main mailbox
         removeLabelIds: [fromId, 'UNREAD'],
       },
     })
