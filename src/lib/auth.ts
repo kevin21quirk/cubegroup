@@ -9,6 +9,8 @@ export interface User {
   role: UserRole
   companyId?: string
   name: string
+  id?: string
+  assignedCompanyIds: string[]
 }
 
 // Super admin credentials (hardcoded)
@@ -26,7 +28,8 @@ export async function login(email: string, password: string, companyId?: string)
       email: SUPER_ADMIN.email,
       name: SUPER_ADMIN.name,
       role: SUPER_ADMIN.role,
-      companyId: companyId || undefined, // Super admin can select a company or see all
+      companyId: companyId || undefined,
+      assignedCompanyIds: [],  // super admin sees all — empty means no filter
     }
     await setSession(user)
     return user
@@ -35,15 +38,18 @@ export async function login(email: string, password: string, companyId?: string)
   // Check database users
   const dbUser = await prisma.user.findUnique({
     where: { email },
+    include: { staffCompanies: { select: { id: true } } },
   })
 
   if (dbUser && dbUser.password === password && dbUser.isActive) {
+    const assignedCompanyIds = dbUser.staffCompanies.map(c => c.id)
     const userData: User = {
+      id: dbUser.id,
       email: dbUser.email,
       name: `${dbUser.firstName || ''} ${dbUser.lastName || ''}`.trim() || dbUser.email,
-      role: dbUser.role,
-      // Use selected company if provided, otherwise use assigned company
+      role: dbUser.role as UserRole,
       companyId: companyId || dbUser.companyId || undefined,
+      assignedCompanyIds,
     }
     await setSession(userData)
     return userData

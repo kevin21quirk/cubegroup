@@ -6,8 +6,10 @@ import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { LayoutDashboard, Building2, Users, FileText, Mail, Receipt, CreditCard, Settings, BarChart3, GitBranch, LogOut } from 'lucide-react'
 import { handleLogout } from '@/app/actions/auth'
+import type { UserRole } from '@/lib/auth'
 
-export function SidebarClient() {
+export function SidebarClient({ role }: { role: UserRole }) {
+  const isSuperAdmin = role === 'SUPER_ADMIN'
   const pathname = usePathname()
 
   return (
@@ -196,25 +198,27 @@ export function SidebarClient() {
               />
               Reports
             </Link>
-            <Link
-              href="/dashboard/settings"
-              className={cn(
-                'group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
-                pathname === '/dashboard/settings'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-              )}
-            >
-              <Settings
+            {isSuperAdmin && (
+              <Link
+                href="/dashboard/settings"
                 className={cn(
-                  'mr-3 h-5 w-5 flex-shrink-0',
+                  'group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
                   pathname === '/dashboard/settings'
-                    ? 'text-primary-foreground'
-                    : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                 )}
-              />
-              Settings
-            </Link>
+              >
+                <Settings
+                  className={cn(
+                    'mr-3 h-5 w-5 flex-shrink-0',
+                    pathname === '/dashboard/settings'
+                      ? 'text-primary-foreground'
+                      : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300'
+                  )}
+                />
+                Settings
+              </Link>
+            )}
           </div>
           
           <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-800">

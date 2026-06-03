@@ -4,8 +4,8 @@ import { Input } from '@/components/ui/input'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { getUser, updateUser } from '@/app/actions/users'
-import { getCompanies } from '@/app/actions/companies'
 import { requireSuperAdmin } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 
 // Force dynamic rendering
@@ -21,7 +21,10 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
   try {
     const { id } = await params
     const user = await getUser(id)
-    const companies = await getCompanies()
+    const companies = await prisma.company.findMany({
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true },
+    })
     
     if (!user) {
       notFound()
@@ -135,16 +138,36 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
                   defaultValue={user.companyId || ''}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <option value="">No default (user selects at login)</option>
+                  <option value="">None</option>
                   {companies.map((company) => (
                     <option key={company.id} value={company.id}>
                       {company.name}
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-muted-foreground">
-                  Staff users select a company at login. This sets their default.
-                </p>
+              </div>
+            </div>
+
+            {/* Assigned Companies */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium">Assigned Companies</label>
+              <p className="text-xs text-muted-foreground">Staff members only see data for companies ticked here.</p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto border rounded-md p-3">
+                {companies.map((company) => {
+                  const checked = user.staffCompanies?.some((c: { id: string }) => c.id === company.id)
+                  return (
+                    <label key={company.id} className="flex items-center gap-2 text-sm cursor-pointer hover:text-foreground text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        name="companyIds"
+                        value={company.id}
+                        defaultChecked={checked}
+                        className="rounded border-gray-300"
+                      />
+                      {company.name}
+                    </label>
+                  )
+                })}
               </div>
             </div>
 

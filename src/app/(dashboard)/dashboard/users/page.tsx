@@ -112,10 +112,16 @@ export default async function UsersPage() {
                     <div className="flex-1">
                       <p className="font-medium">{user.firstName} {user.lastName}</p>
                       <p className="text-sm text-muted-foreground">{user.email}</p>
-                      {user.company && (
+                      {user.staffCompanies && user.staffCompanies.length > 0 ? (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Companies: {user.staffCompanies.map((c: { name: string }) => c.name).join(', ')}
+                        </p>
+                      ) : user.company ? (
                         <p className="text-xs text-muted-foreground mt-1">
                           Company: {user.company.name}
                         </p>
+                      ) : (
+                        <p className="text-xs text-orange-500 mt-1">No companies assigned</p>
                       )}
                     </div>
                   </div>
@@ -146,19 +152,6 @@ export default async function UsersPage() {
         </CardContent>
       </Card>
 
-      <Card className="border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-950/20">
-        <CardHeader>
-          <CardTitle className="text-yellow-800 dark:text-yellow-200">Coming Soon</CardTitle>
-          <CardDescription>User management features in development</CardDescription>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground space-y-2">
-          <p>• Create new users with email/password</p>
-          <p>• Assign users to specific companies</p>
-          <p>• Edit user permissions and access</p>
-          <p>• Delete or deactivate users</p>
-          <p>• Password reset functionality</p>
-        </CardContent>
-      </Card>
     </div>
   )
 }

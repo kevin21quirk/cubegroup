@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { getSession } from '@/lib/auth'
 
 function str(fd: FormData, key: string): string | undefined {
   const v = fd.get(key) as string | null
@@ -121,8 +122,13 @@ export async function createWorker(formData: FormData) {
 }
 
 export async function getWorkers() {
+  const session = await getSession()
+  const isStaff = session?.role === 'STAFF'
+  const assignedIds = session?.assignedCompanyIds ?? []
+
   return await prisma.worker.findMany({
     orderBy: { createdAt: 'desc' },
+    where: isStaff && assignedIds.length > 0 ? { companyId: { in: assignedIds } } : undefined,
     include: {
       company: true,
       _count: {

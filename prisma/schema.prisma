@@ -99,6 +99,8 @@ model User {
   activities        Activity[]
   assignedTasks     Task[]
   createdCompanies  Company[]           @relation("CreatedBy")
+  staffCompanies    Company[]           @relation("StaffCompanies")
+  notifications     Notification[]
   
   @@index([clerkId])
   @@index([email])
@@ -169,6 +171,7 @@ model Company {
   notes                 Note[]
   activities            Activity[]
   users                 User[]                @relation("UserCompany")
+  assignedStaff         User[]                @relation("StaffCompanies")
   
   @@index([name])
   @@index([isActive])
@@ -868,5 +871,21 @@ model WorkflowLog {
   
   @@index([emailImportId])
   @@index([state])
+  @@index([createdAt])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String?
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String    @default("SYSTEM")
+  link      String?
+  isRead    Boolean   @default(false)
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([isRead])
   @@index([createdAt])
 }

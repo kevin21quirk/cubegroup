@@ -35,6 +35,7 @@ export async function getUsers() {
   return await prisma.user.findMany({
     include: {
       company: true,
+      staffCompanies: { select: { id: true, name: true } },
     },
     orderBy: { createdAt: 'desc' },
   })
@@ -45,8 +46,21 @@ export async function getUser(id: string) {
     where: { id },
     include: {
       company: true,
+      staffCompanies: { select: { id: true, name: true } },
     },
   })
+}
+
+export async function setUserCompanies(userId: string, companyIds: string[]) {
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      staffCompanies: {
+        set: companyIds.map(id => ({ id })),
+      },
+    },
+  })
+  revalidatePath('/dashboard/users')
 }
 
 export async function updateUser(id: string, formData: FormData) {
@@ -56,6 +70,7 @@ export async function updateUser(id: string, formData: FormData) {
   const role = formData.get('role') as 'SUPER_ADMIN' | 'STAFF'
   const companyId = formData.get('companyId') as string
   const password = formData.get('password') as string
+  const companyIds = formData.getAll('companyIds') as string[]
 
   const updateData: any = {
     firstName,
@@ -63,11 +78,13 @@ export async function updateUser(id: string, formData: FormData) {
     email,
     role,
     companyId: companyId || null,
+    staffCompanies: {
+      set: companyIds.filter(Boolean).map(cid => ({ id: cid })),
+    },
   }
 
-  // Only update password if provided
   if (password) {
-    updateData.password = password // In production, hash this password!
+    updateData.password = password
   }
 
   await prisma.user.update({
