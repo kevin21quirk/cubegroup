@@ -55,6 +55,8 @@ export class GmailService {
       access_type: 'offline',
       prompt: 'consent',           // force refresh_token to be returned every time
       scope: [
+        'openid',
+        'https://www.googleapis.com/auth/userinfo.email',
         'https://www.googleapis.com/auth/gmail.readonly',
         'https://www.googleapis.com/auth/gmail.modify',   // needed to apply labels
         'https://www.googleapis.com/auth/gmail.labels',
@@ -81,11 +83,16 @@ export class GmailService {
       update: { value: tokens.refresh_token },
     })
 
-    // Also try to get the email address for confirmation
+    // Also try to get the email address for confirmation (non-critical)
     client.setCredentials(tokens)
-    const oauth2 = google.oauth2({ version: 'v2', auth: client })
-    const userInfo = await oauth2.userinfo.get()
-    const email = userInfo.data.email || 'unknown'
+    let email = env.GMAIL_MONITOR_EMAIL || 'unknown'
+    try {
+      const oauth2 = google.oauth2({ version: 'v2', auth: client })
+      const userInfo = await oauth2.userinfo.get()
+      email = userInfo.data.email || email
+    } catch (emailErr) {
+      console.warn('[GmailService] Could not fetch email from userinfo, using fallback:', emailErr)
+    }
 
     await prisma.systemConfig.upsert({
       where:  { key: 'GOOGLE_CONNECTED_EMAIL' },
