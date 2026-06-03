@@ -5,6 +5,7 @@ import { Plus, Building2, Users, FileText, Mail, Phone, MapPin, Edit } from 'luc
 import Link from 'next/link'
 import { getCompanies } from '@/app/actions/companies'
 import { formatDate } from '@/lib/utils'
+import ImportDialog from '@/components/import/ImportDialog'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -21,12 +22,15 @@ export default async function CompaniesPage() {
             Manage your client companies and their details
           </p>
         </div>
-        <Link href="/dashboard/companies/new">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Company
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <ImportDialog entity="companies" />
+          <Link href="/dashboard/companies/new">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Company
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {companies.length === 0 ? (

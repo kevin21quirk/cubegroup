@@ -5,6 +5,7 @@ import { Plus, Users, Mail, Phone, Building2, Briefcase, CreditCard } from 'luci
 import Link from 'next/link'
 import { getWorkers } from '@/app/actions/workers'
 import { formatDate } from '@/lib/utils'
+import ImportDialog from '@/components/import/ImportDialog'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -23,12 +24,15 @@ export default async function WorkersPage() {
             Manage contractors and workers across all companies
           </p>
         </div>
-        <Link href="/dashboard/workers/new">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Worker
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <ImportDialog entity="workers" />
+          <Link href="/dashboard/workers/new">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Worker
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
