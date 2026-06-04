@@ -10,6 +10,7 @@ import { getWorkerUpsertService } from '../workers/WorkerUpsertService'
 import { getAccountingService } from '../accounting/AccountingService'
 import path from 'path'
 import os from 'os'
+import fs from 'fs'
 
 export interface EmailProcessingResult {
   success: boolean
@@ -214,18 +215,32 @@ export class EmailProcessingService {
     const empty: FullExtractionResult = { success: false, documentType: 'UNKNOWN', payrollEntries: [], workerData: [], confidence: 0, error: 'No processable attachments' }
 
     for (const att of attachments) {
-      const filePath = att.localPath || att.storageUrl
-      if (!filePath) continue
-
       let result: FullExtractionResult
 
       try {
-        if (att.documentType === 'IMAGE' || (att.mimeType || '').startsWith('image/')) {
+        const isImage = att.documentType === 'IMAGE' || (att.mimeType || '').startsWith('image/')
+
+        // Resolve file path — temp file may be gone on serverless retry
+        const filePath = att.localPath || att.storageUrl
+        const fileOnDisk = filePath && fs.existsSync(filePath)
+
+        if (isImage) {
+          if (!fileOnDisk) continue  // images cannot fall back to DB text
           const { base64, mediaType } = await this.fileReader.readImageAsBase64(filePath)
           result = await this.aiService.extractFromImage(base64, mediaType)
-        } else {
+        } else if (fileOnDisk) {
           const content = await this.fileReader.readFile(filePath, att.mimeType || '', att.filename || '')
           result = await this.aiService.extractFromText(content.text, content.documentType)
+        } else if (att.extractedText) {
+          // Temp file gone (serverless re-invocation) — use content stored in DB at download time
+          const isBase64 = !/[\n\t,;"']/.test(att.extractedText.slice(0, 100)) && att.extractedText.length > 50
+          const text = isBase64
+            ? Buffer.from(att.extractedText, 'base64').toString('utf-8').slice(0, 8000)
+            : att.extractedText.slice(0, 8000)
+          const docType = (att.documentType as string) || 'CSV'
+          result = await this.aiService.extractFromText(text, docType)
+        } else {
+          continue  // nothing to work with
         }
 
         if (result.success) {

@@ -55,13 +55,22 @@ export class AttachmentDownloadService {
         const localPath = path.join(os.tmpdir(), `cube_${emailImportId.slice(-6)}_${safeName}`)
         fs.writeFileSync(localPath, buffer)
 
+        // Persist raw content in DB so processEmail can read it even
+        // after the temp file is gone (Vercel serverless: /tmp is ephemeral)
+        const isTextBased = /\.(csv|txt|json|tsv)$/i.test(meta.filename)
+          || meta.mimeType.startsWith('text/')
+        const rawContent = isTextBased
+          ? buffer.toString('utf-8').slice(0, 500_000)
+          : buffer.toString('base64').slice(0, 500_000)
+
         // Update DB record
         await prisma.attachment.update({
           where: { id: dbRecord.id },
           data: {
             localPath,
-            status:       'DOWNLOADED',
-            downloadedAt: new Date(),
+            extractedText: rawContent,
+            status:        'DOWNLOADED',
+            downloadedAt:  new Date(),
           },
         })
 
