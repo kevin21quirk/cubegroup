@@ -3,8 +3,9 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Upload, FileText, AlertCircle, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
-import { getPayrollSubmissions } from '@/app/actions/payroll'
+import { getPayrollSubmissions, deletePayrollSubmission } from '@/app/actions/payroll'
 import { formatDate, formatCurrency } from '@/lib/utils'
+import { DeleteButton } from '@/components/ui/delete-button'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -97,25 +98,30 @@ export default async function PayrollPage() {
           ) : (
             <div className="space-y-3">
               {submissions.map((submission) => (
-                <Link key={submission.id} href={`/dashboard/payroll/${submission.id}`}>
-                  <div className="flex items-center justify-between p-4 rounded-lg border hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">{submission.company.name}</p>
-                        <Badge variant={submission.workflowState === 'COMPLETED' ? 'default' : 'secondary'}>
-                          {submission.workflowState.replace(/_/g, ' ')}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Week: {submission.payrollWeek} • {submission._count.payrollEntries} entries
-                      </p>
+                <div key={submission.id} className="flex items-center justify-between p-4 rounded-lg border hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                  <Link href={`/dashboard/payroll/${submission.id}`} className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">{submission.company.name}</p>
+                      <Badge variant={submission.workflowState === 'COMPLETED' ? 'default' : 'secondary'}>
+                        {submission.workflowState.replace(/_/g, ' ')}
+                      </Badge>
                     </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Week: {submission.payrollWeek} • {submission._count.payrollEntries} entries
+                    </p>
+                  </Link>
+                  <div className="flex items-center gap-4 ml-4 shrink-0">
                     <div className="text-right">
                       <p className="text-sm font-medium">{formatCurrency(submission.totalGrossPay)}</p>
                       <p className="text-xs text-muted-foreground">{formatDate(submission.createdAt)}</p>
                     </div>
+                    <DeleteButton
+                      action={async () => { 'use server'; await deletePayrollSubmission(submission.id) }}
+                      label="submission"
+                      description={`Delete ${submission.company.name} – ${submission.payrollWeek}? This removes all entries and cannot be undone.`}
+                    />
                   </div>
-                </Link>
+                </div>
               ))}
             </div>
           )}

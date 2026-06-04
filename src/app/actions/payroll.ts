@@ -45,6 +45,11 @@ export async function getPayrollSubmissions() {
   })
 }
 
+export async function deletePayrollSubmission(id: string) {
+  await prisma.payrollSubmission.delete({ where: { id } })
+  revalidatePath('/dashboard/payroll')
+}
+
 export async function getPayrollSubmission(id: string) {
   return await prisma.payrollSubmission.findUnique({
     where: { id },

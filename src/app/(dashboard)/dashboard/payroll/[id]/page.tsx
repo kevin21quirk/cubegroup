@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button'
 import { ArrowLeft, Building2, Calendar, Users } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getPayrollSubmission } from '@/app/actions/payroll'
+import { getPayrollSubmission, deletePayrollSubmission } from '@/app/actions/payroll'
 import { PayrollReviewTable } from '@/components/payroll/PayrollReviewTable'
 import { LocalTime } from '@/components/ui/local-time'
+import { DeleteButton } from '@/components/ui/delete-button'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,6 +32,12 @@ export default async function PayrollDetailPage({ params }: { params: Promise<{ 
         <Badge variant={s.workflowState === 'COMPLETED' ? 'default' : 'secondary'}>
           {s.workflowState?.replace(/_/g, ' ')}
         </Badge>
+        <DeleteButton
+          action={async () => { 'use server'; await deletePayrollSubmission(id) }}
+          label="payroll submission"
+          description={`This will permanently delete the payroll submission for ${s.company.name} (${s.payrollWeek}) and all its entries. This cannot be undone.`}
+          redirectTo="/dashboard/payroll"
+        />
       </div>
 
       {/* Summary cards */}
