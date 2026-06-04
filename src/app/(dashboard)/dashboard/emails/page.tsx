@@ -215,7 +215,7 @@ export default async function EmailsPage() {
                                 <Eye className="h-3.5 w-3.5" />
                               </Button>
                             </Link>
-                            {(email.processingStatus === 'FAILED' || email.processingStatus === 'RETRY_NEEDED') && (
+                            {!['COMPLETED', 'PROCESSING', 'EXTRACTING', 'VALIDATING', 'GENERATING', 'UPLOADING'].includes(email.processingStatus) && (
                               <EmailRetryButton emailId={email.id} />
                             )}
                             <EmailDeleteButton emailId={email.id} />

@@ -12,11 +12,9 @@ export function EmailRetryButton({ emailId }: { emailId: string }) {
     setLoading(true)
     try {
       const res = await fetch(`/api/emails/${emailId}/retry`, { method: 'POST' })
-      if (res.ok) {
-        setDone(true)
-        setTimeout(() => window.location.reload(), 1000)
-      }
-    } finally {
+      setDone(true)
+      setTimeout(() => window.location.reload(), 1500)
+    } catch {
       setLoading(false)
     }
   }

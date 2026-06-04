@@ -17,7 +17,7 @@ const envSchema = z.object({
 
   // ── AI (Anthropic Claude) ─────────────────────────────────────────────────
   ANTHROPIC_API_KEY:                 z.string().optional(),
-  ANTHROPIC_MODEL:                   z.string().default('claude-sonnet-4-6'),
+  ANTHROPIC_MODEL:                   z.string().default('claude-3-5-sonnet-20241022'),
 
   // ── Google / Gmail ────────────────────────────────────────────────────────
   GOOGLE_CLIENT_ID:                  z.string().optional(),

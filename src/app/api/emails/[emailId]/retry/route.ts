@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getEmailProcessingService } from '@/services/email/EmailProcessingService'
+
+export const maxDuration = 300
 
 export async function POST(
   _req: NextRequest,
@@ -15,26 +18,30 @@ export async function POST(
       return NextResponse.json({ error: 'Email not found' }, { status: 404 })
     }
 
+    // Reset status so the pipeline can run from the start
     await prisma.emailImport.update({
       where: { id: emailId },
       data: {
         processingStatus: 'PENDING',
         errorMessage: null,
+        isProcessed: false,
         retryCount: { increment: 1 },
         lastRetryAt: new Date(),
       },
     })
 
-    // Log retry in workflow
     await prisma.workflowLog.create({
       data: {
         emailImportId: emailId,
         state: 'EMAIL_RECEIVED',
-        message: `Manual retry triggered (attempt ${email.retryCount + 1})`,
+        message: `Manual retry triggered (attempt ${(email.retryCount ?? 0) + 1})`,
       },
     })
 
-    return NextResponse.json({ success: true })
+    // Actually run the processing pipeline
+    const result = await getEmailProcessingService().processEmail(emailId)
+
+    return NextResponse.json({ success: result.success, state: result.state, error: result.error })
   } catch (error) {
     console.error('Retry error:', error)
     return NextResponse.json({ error: 'Failed to queue retry' }, { status: 500 })

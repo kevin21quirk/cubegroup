@@ -236,10 +236,12 @@ export class EmailProcessingService {
     }
 
     if (!company) {
-      const superAdmin = await prisma.user.findFirst({ where: { role: 'SUPER_ADMIN' } })
-      if (!superAdmin) throw new Error('No super admin found')
+      const creator = await prisma.user.findFirst({
+        where: { role: 'SUPER_ADMIN' },
+      }) || await prisma.user.findFirst()
+      if (!creator) throw new Error('No users found in database — add at least one user before email processing can create companies')
       company = await prisma.company.create({
-        data: { name: companyName, createdById: superAdmin.id },
+        data: { name: companyName, createdById: creator.id },
       })
     }
 

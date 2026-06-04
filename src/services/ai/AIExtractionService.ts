@@ -42,7 +42,7 @@ export class AIExtractionService {
   async extractFromText(content: string, fileType: string): Promise<FullExtractionResult> {
     try {
       const message = await this.anthropic.messages.create({
-        model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6',
+        model: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022',
         max_tokens: 8096,
         temperature: 0.1,
         system: this.getSystemPrompt(),
@@ -58,7 +58,7 @@ export class AIExtractionService {
   async extractFromImage(base64: string, mediaType: string): Promise<FullExtractionResult> {
     try {
       const message = await this.anthropic.messages.create({
-        model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6',
+        model: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022',
         max_tokens: 8096,
         temperature: 0.1,
         system: this.getSystemPrompt(),
