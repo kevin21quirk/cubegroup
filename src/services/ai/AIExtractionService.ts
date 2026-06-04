@@ -83,8 +83,8 @@ export class AIExtractionService {
   // ── Main extraction – text-based attachments ──────────────────────────────
   // Large CSVs are automatically split into row-batches of BATCH_ROWS to keep
   // AI output within the token limit, then merged back into one result.
-  private static readonly BATCH_ROWS     = 60    // rows per AI call
-  private static readonly CHAR_THRESHOLD = 4000  // only batch above this size
+  private static readonly BATCH_ROWS     = 15    // rows per AI call (35+ fields/worker × 15 ≈ 7k chars output, safe within 8k token limit)
+  private static readonly CHAR_THRESHOLD = 2000  // only batch above this size
 
   async extractFromText(content: string, fileType: string): Promise<FullExtractionResult> {
     const isCSV = /^(CSV|csv|text\/csv)$/i.test(fileType)
@@ -120,13 +120,18 @@ export class AIExtractionService {
     }
 
     const results: FullExtractionResult[] = []
-    for (const batch of batches) {
-      const r = await this.extractSingleChunk(batch, 'CSV')
-      if (r.success) results.push(r)
+    const batchErrors: string[] = []
+    for (let i = 0; i < batches.length; i++) {
+      const r = await this.extractSingleChunk(batches[i], 'CSV')
+      if (r.success) {
+        results.push(r)
+      } else {
+        batchErrors.push(`batch ${i + 1}/${batches.length}: ${r.error ?? 'unknown'}`)
+      }
     }
 
     if (results.length === 0) {
-      return { success: false, documentType: 'UNKNOWN', payrollEntries: [], workerData: [], confidence: 0, error: 'All CSV batches failed' }
+      return { success: false, documentType: 'UNKNOWN', payrollEntries: [], workerData: [], confidence: 0, error: `All ${batches.length} CSV batches failed. Errors: ${batchErrors.join(' | ')}` }
     }
     if (results.length === 1) return results[0]
 

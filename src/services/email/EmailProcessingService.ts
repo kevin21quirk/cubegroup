@@ -275,8 +275,8 @@ export class EmailProcessingService {
           diagnostics.push(`${diagBase} → using DB extractedText`)
           const isBase64 = !/[\n\t,;"']/.test(att.extractedText.slice(0, 100)) && att.extractedText.length > 50
           const text = isBase64
-            ? Buffer.from(att.extractedText, 'base64').toString('utf-8').slice(0, 8000)
-            : att.extractedText.slice(0, 8000)
+            ? Buffer.from(att.extractedText, 'base64').toString('utf-8')
+            : att.extractedText
           const docType = (att.documentType as string) || 'CSV'
           result = await this.aiService.extractFromText(text, docType)
         } else {
