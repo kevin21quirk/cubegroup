@@ -85,8 +85,8 @@ export class EmailProcessingService {
       // ── Step 4: Find / create company ─────────────────────────────────────
       const companyName = extraction.payrollEntries[0]?.companyName
         || extraction.workerData[0]?.agency
-        || emailImport.from?.split('@')[1]?.split('.')[0]
-        || 'Unknown'
+        || extraction.workerData[0]?.tradingName
+        || 'Unknown Company'
       const payrollWeek = extraction.payrollEntries[0]?.payrollWeek || new Date().toISOString().split('T')[0]
       const company = await this.resolveCompany(companyName, emailImport.from)
 
