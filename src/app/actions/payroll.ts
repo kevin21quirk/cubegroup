@@ -61,20 +61,42 @@ export async function getPayrollSubmission(id: string) {
   })
 }
 
+function calcEntry(gross: number, taxRate: number, feeRate: number, umbrellaSharePct: number, brokerSharePct: number) {
+  const taxAmount        = parseFloat(((gross * taxRate) / 100).toFixed(2))
+  const feeAmount        = parseFloat(((gross * feeRate) / 100).toFixed(2))
+  const umbrellaShareAmount = parseFloat(((feeAmount * umbrellaSharePct) / 100).toFixed(2))
+  const brokerShareAmount   = parseFloat(((feeAmount * brokerSharePct)   / 100).toFixed(2))
+  const netToWorker      = parseFloat((gross - taxAmount - feeAmount).toFixed(2))
+  return { taxAmount, feeAmount, umbrellaShareAmount, brokerShareAmount, netToWorker }
+}
+
 export async function updateEntryTaxRate(entryId: string, taxRate: number) {
   const entry = await prisma.payrollEntry.findUnique({ where: { id: entryId } })
   if (!entry) throw new Error('Entry not found')
-
   const gross = entry.grossPay || entry.totalGrossPay
-  const taxAmount = parseFloat(((gross * taxRate) / 100).toFixed(2))
-  const netToWorker = parseFloat((gross - taxAmount).toFixed(2))
-
-  await prisma.payrollEntry.update({
-    where: { id: entryId },
-    data: { taxRate, taxAmount, netToWorker, payslipStatus: 'PENDING' },
-  })
-
+  const calc  = calcEntry(gross, taxRate, entry.feeRate, entry.umbrellaSharePct, entry.brokerSharePct)
+  await prisma.payrollEntry.update({ where: { id: entryId }, data: { taxRate, ...calc, payslipStatus: 'PENDING' } })
   revalidatePath(`/dashboard/payroll/${entry.payrollSubmissionId}`)
+}
+
+export async function saveBulkEntryRates(updates: {
+  id: string
+  taxRate: number
+  feeRate: number
+  umbrellaSharePct: number
+  brokerSharePct: number
+}[]) {
+  for (const { id, taxRate, feeRate, umbrellaSharePct, brokerSharePct } of updates) {
+    const entry = await prisma.payrollEntry.findUnique({ where: { id } })
+    if (!entry) continue
+    const gross = entry.grossPay || entry.totalGrossPay
+    const calc  = calcEntry(gross, taxRate, feeRate, umbrellaSharePct, brokerSharePct)
+    await prisma.payrollEntry.update({
+      where: { id },
+      data: { taxRate, feeRate, umbrellaSharePct, brokerSharePct, ...calc, payslipStatus: 'PENDING' },
+    })
+    revalidatePath(`/dashboard/payroll/${entry.payrollSubmissionId}`)
+  }
 }
 
 export async function saveBulkTaxRates(updates: { id: string; taxRate: number }[]) {
@@ -114,6 +136,9 @@ export async function sendPayslipsForSubmission(submissionId: string) {
     const taxAmount = e.taxAmount || parseFloat(((gross * taxRate) / 100).toFixed(2))
     const netToWorker = e.netToWorker || parseFloat((gross - taxAmount).toFixed(2))
 
+    const feeRate   = e.feeRate ?? 0
+    const feeAmount = e.feeAmount || parseFloat(((gross * feeRate) / 100).toFixed(2))
+
     const entry = {
       id: e.id,
       workerName: e.workerName,
@@ -123,6 +148,8 @@ export async function sendPayslipsForSubmission(submissionId: string) {
       grossPay: gross,
       taxRate,
       taxAmount,
+      feeRate,
+      feeAmount,
       netToWorker,
       hoursWorked: e.hoursWorked,
       hourlyRate: e.hourlyRate,

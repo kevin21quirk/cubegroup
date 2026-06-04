@@ -396,6 +396,14 @@ model PayrollEntry {
   umbrellaFee           Float               @default(0)
   netToWorker           Float               @default(0)
 
+  // Commission / margin fee fields
+  feeRate               Float               @default(0)    // fee as % of gross
+  feeAmount             Float               @default(0)    // grossPay * feeRate / 100
+  umbrellaSharePct      Float               @default(50)   // umbrella company % of fee
+  brokerSharePct        Float               @default(50)   // broker % of fee
+  umbrellaShareAmount   Float               @default(0)    // feeAmount * umbrellaSharePct / 100
+  brokerShareAmount     Float               @default(0)    // feeAmount * brokerSharePct / 100
+
   // Tax / payslip fields
   taxRate               Float               @default(20.0) // CIS: 20% standard, 30% higher
   taxAmount             Float               @default(0)
