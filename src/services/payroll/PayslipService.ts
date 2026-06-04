@@ -14,7 +14,6 @@ export interface PayslipEntry {
   grossPay: number
   taxRate: number
   taxAmount: number
-  feeRate: number
   feeAmount: number
   netToWorker: number
   hoursWorked: number
@@ -69,7 +68,7 @@ export class PayslipService {
       <tr><th>Description</th><th style="text-align:right">Amount (£)</th></tr>
       ${entry.hoursWorked > 0 ? `<tr><td>Hours Worked (${entry.hoursWorked}h @ £${entry.hourlyRate.toFixed(2)}/h)</td><td class="amount">£${gross}</td></tr>` : `<tr><td>Gross Pay</td><td class="amount">£${gross}</td></tr>`}
       <tr><td class="deduction">CIS / Tax Deduction (${rate}%)</td><td class="amount deduction">-£${tax}</td></tr>
-      ${entry.feeAmount > 0 ? `<tr><td class="deduction">Umbrella Fee (${entry.feeRate.toFixed(1)}%)</td><td class="amount deduction">-£${entry.feeAmount.toFixed(2)}</td></tr>` : ''}
+      ${entry.feeAmount > 0 ? `<tr><td class="deduction">Umbrella / Administration Fee</td><td class="amount deduction">-£${entry.feeAmount.toFixed(2)}</td></tr>` : ''}
     </table>
     <table>
       <tr class="total-row net"><td>NET PAY</td><td class="amount">£${net}</td></tr>

@@ -33,7 +33,7 @@ interface Entry {
 
 interface Rates {
   taxRate: number
-  feeRate: number
+  feeAmount: number
   umbrellaSharePct: number
   brokerSharePct: number
 }
@@ -48,26 +48,27 @@ function pct(n: number) { return `${n.toFixed(1)}%` }
 
 function calc(gross: number, r: Rates) {
   const tax      = parseFloat(((gross * r.taxRate) / 100).toFixed(2))
-  const fee      = parseFloat(((gross * r.feeRate) / 100).toFixed(2))
+  const fee      = parseFloat(r.feeAmount.toFixed(2))
   const umbrella = parseFloat(((fee * r.umbrellaSharePct) / 100).toFixed(2))
   const broker   = parseFloat(((fee * r.brokerSharePct)   / 100).toFixed(2))
   const net      = parseFloat((gross - tax - fee).toFixed(2))
   return { tax, fee, umbrella, broker, net }
 }
 
-function NumInput({ value, onChange, min = 0, max = 100, step = 0.5, disabled = false, className = '' }: {
-  value: number; onChange: (v: number) => void; min?: number; max?: number; step?: number; disabled?: boolean; className?: string
+function NumInput({ value, onChange, min = 0, max = 100, step = 0.5, disabled = false, className = '', prefix = '', suffix = '%' }: {
+  value: number; onChange: (v: number) => void; min?: number; max?: number; step?: number; disabled?: boolean; className?: string; prefix?: string; suffix?: string
 }) {
   return (
     <div className="flex items-center gap-0.5">
+      {prefix && <span className="text-muted-foreground text-xs">{prefix}</span>}
       <Input
         type="number" min={min} max={max} step={step}
         value={value}
-        onChange={e => { const n = parseFloat(e.target.value); if (!isNaN(n) && n >= min && n <= max) onChange(n) }}
+        onChange={e => { const n = parseFloat(e.target.value); if (!isNaN(n) && n >= min) onChange(n) }}
         className={`h-8 text-center text-sm ${className}`}
         disabled={disabled}
       />
-      <span className="text-muted-foreground text-xs">%</span>
+      {suffix && <span className="text-muted-foreground text-xs">{suffix}</span>}
     </div>
   )
 }
@@ -77,13 +78,13 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
   const [rates, setRates] = useState<Record<string, Rates>>(
     Object.fromEntries(initial.map(e => [e.id, {
       taxRate: e.taxRate ?? 20,
-      feeRate: e.feeRate ?? 0,
+      feeAmount: e.feeAmount ?? 0,
       umbrellaSharePct: e.umbrellaSharePct ?? 50,
       brokerSharePct: e.brokerSharePct ?? 50,
     }]))
   )
   // Global defaults panel
-  const [global, setGlobal] = useState<Rates>({ taxRate: 20, feeRate: 3, umbrellaSharePct: 50, brokerSharePct: 50 })
+  const [global, setGlobal] = useState<Rates>({ taxRate: 20, feeAmount: 0, umbrellaSharePct: 50, brokerSharePct: 50 })
   const [sendResults, setSendResults] = useState<{ name: string; status: string; error?: string }[] | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -103,9 +104,13 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
     return { gross: acc.gross + g, tax: acc.tax + c.tax, fee: acc.fee + c.fee, net: acc.net + c.net, umbrella: acc.umbrella + c.umbrella, broker: acc.broker + c.broker }
   }, { gross: 0, tax: 0, fee: 0, net: 0, umbrella: 0, broker: 0 })
 
+
   function handleSave() {
     startTransition(async () => {
-      const updates = entries.map(e => ({ id: e.id, ...r(e.id) }))
+      const updates = entries.map(e => {
+        const er = r(e.id)
+        return { id: e.id, taxRate: er.taxRate, feeAmount: er.feeAmount, umbrellaSharePct: er.umbrellaSharePct, brokerSharePct: er.brokerSharePct }
+      })
       await saveBulkEntryRates(updates)
     })
   }
@@ -143,8 +148,8 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
             <NumInput value={global.taxRate} onChange={v => setGlobal(g => ({ ...g, taxRate: v }))} className="w-16" />
           </div>
           <div>
-            <p className="text-xs font-medium text-muted-foreground mb-1.5">Fee % (of gross)</p>
-            <NumInput value={global.feeRate} onChange={v => setGlobal(g => ({ ...g, feeRate: v }))} className="w-16" />
+            <p className="text-xs font-medium text-muted-foreground mb-1.5">Fee per payslip (£)</p>
+            <NumInput value={global.feeAmount} onChange={v => setGlobal(g => ({ ...g, feeAmount: v }))} min={0} max={99999} step={1} prefix="£" suffix="" className="w-20" />
           </div>
           <div className="border-l pl-4">
             <p className="text-xs font-medium text-muted-foreground mb-1.5">Fee split — Umbrella %</p>
@@ -158,7 +163,7 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
             <RefreshCw className="mr-2 h-3 w-3" />Apply to all
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground mt-2">Fee is deducted from net per payslip. Umbrella + Broker must total 100%.</p>
+        <p className="text-xs text-muted-foreground mt-2">Fee is a fixed £ amount deducted per payslip: <strong>Net = Gross − Tax − Fee</strong>. Umbrella % + Broker % must total 100%.</p>
       </div>
 
       {/* Summary totals */}
@@ -187,8 +192,7 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
               <th className="text-right px-3 py-2.5">Gross</th>
               <th className="text-center px-3 py-2.5">Tax %</th>
               <th className="text-right px-3 py-2.5">Tax</th>
-              <th className="text-center px-3 py-2.5">Fee %</th>
-              <th className="text-right px-3 py-2.5">Fee</th>
+              <th className="text-right px-3 py-2.5">Fee £</th>
               <th className="text-center px-3 py-2.5 text-blue-700">Umb %</th>
               <th className="text-right px-3 py-2.5 text-blue-700">Umb £</th>
               <th className="text-center px-3 py-2.5 text-purple-700">Broker %</th>
@@ -219,9 +223,8 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
                   </td>
                   <td className="px-3 py-2.5 text-right tabular-nums text-red-600">-{fmt(c.tax)}</td>
                   <td className="px-3 py-2.5 text-center">
-                    <NumInput value={er.feeRate} onChange={v => setRate(e.id, 'feeRate', v)} disabled={isPending} className="w-14" />
+                    <NumInput value={er.feeAmount} onChange={v => setRate(e.id, 'feeAmount', v)} min={0} max={99999} step={1} prefix="£" suffix="" disabled={isPending} className="w-16" />
                   </td>
-                  <td className="px-3 py-2.5 text-right tabular-nums text-orange-600">-{fmt(c.fee)}</td>
                   <td className="px-3 py-2.5 text-center">
                     <NumInput value={er.umbrellaSharePct}
                       onChange={v => { setRate(e.id, 'umbrellaSharePct', v); setRate(e.id, 'brokerSharePct', parseFloat((100 - v).toFixed(1))) }}
@@ -250,7 +253,6 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
               <td className="px-3 py-2.5 text-right tabular-nums">{fmt(totals.gross)}</td>
               <td />
               <td className="px-3 py-2.5 text-right tabular-nums text-red-600">-{fmt(totals.tax)}</td>
-              <td />
               <td className="px-3 py-2.5 text-right tabular-nums text-orange-600">-{fmt(totals.fee)}</td>
               <td />
               <td className="px-3 py-2.5 text-right tabular-nums text-blue-600">{fmt(totals.umbrella)}</td>
