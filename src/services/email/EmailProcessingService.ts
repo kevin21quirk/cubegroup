@@ -8,6 +8,7 @@ import { getStorageService } from '../storage/StorageService'
 import { getFileReaderService } from '../files/FileReaderService'
 import { getWorkerUpsertService } from '../workers/WorkerUpsertService'
 import { getAccountingService } from '../accounting/AccountingService'
+import { getAttachmentDownloadService } from './AttachmentDownloadService'
 import path from 'path'
 import os from 'os'
 import fs from 'fs'
@@ -42,8 +43,16 @@ export class EmailProcessingService {
       })
       if (!emailImport) return { success: false, emailImportId, error: 'Email import not found' }
 
-      // ── Step 1: Mark attachment download ──────────────────────────────────
+      // ── Step 1: Ensure attachments are downloaded ───────────────────────────
       await this.workflowService.transitionState(emailImportId, 'ATTACHMENT_DOWNLOADED', 'Downloading attachments')
+
+      // Self-healing: re-download from Gmail if local file and DB content are both missing
+      if (emailImport.messageId) {
+        await getAttachmentDownloadService()
+          .redownloadIfNeeded(emailImportId, emailImport.messageId)
+          .catch(e => console.warn('[processEmail] redownloadIfNeeded failed:', e?.message ?? e))
+      }
+
       const attachments = await prisma.attachment.findMany({ where: { emailImportId } })
 
       if (attachments.length === 0) {

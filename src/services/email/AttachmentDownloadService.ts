@@ -91,6 +91,24 @@ export class AttachmentDownloadService {
 
     return results
   }
+
+  /**
+   * Re-fetches the original Gmail message and re-downloads any attachments
+   * that are missing both a disk file and stored extractedText.
+   * Safe to call at any time — no-ops if content is already available.
+   */
+  async redownloadIfNeeded(emailImportId: string, messageId: string): Promise<void> {
+    const dbAttachments = await prisma.attachment.findMany({ where: { emailImportId } })
+    const missing = dbAttachments.filter(a => {
+      const onDisk = !!a.localPath && fs.existsSync(a.localPath)
+      return !onDisk && !a.extractedText
+    })
+    if (missing.length === 0) return
+
+    const rawMessage = await this.gmail.getMessageDetails(messageId)
+    const parsed     = this.gmail.parseMessage(rawMessage)
+    await this.downloadAll(emailImportId, messageId, parsed.attachments)
+  }
 }
 
 let instance: AttachmentDownloadService | null = null
