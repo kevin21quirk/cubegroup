@@ -51,19 +51,30 @@ export class EmailProcessingService {
       }
 
       // ── Step 2: AI extraction across all attachments ───────────────────────
-      await this.workflowService.transitionState(emailImportId, 'AI_PROCESSING', 'Extracting data with AI')
+      await prisma.emailImport.update({ where: { id: emailImportId }, data: { processingStatus: 'EXTRACTING' } })
       const extraction = await this.extractFromAttachments(attachments)
 
-      if (!extraction.success || extraction.payrollEntries.length === 0) {
-        await this.workflowService.markAsFailed(emailImportId, 'AI extraction failed', extraction.error)
-        return { success: false, emailImportId, error: extraction.error }
+      const workerOnlyDoc = ['CONTRACTOR_REGISTRATION', 'CIS'].includes(extraction.documentType)
+      const hasContent    = extraction.payrollEntries.length > 0 || extraction.workerData.length > 0
+
+      if (!extraction.success || !hasContent) {
+        await prisma.emailImport.update({ where: { id: emailImportId }, data: { processingStatus: 'FAILED', errorMessage: extraction.error || 'AI extraction returned no data' } })
+        await this.workflowService.markAsFailed(emailImportId, extraction.error || 'AI extraction returned no data', extraction.error)
+        return { success: false, emailImportId, error: extraction.error || 'AI extraction returned no data' }
       }
 
-      // ── Step 3: Validate ───────────────────────────────────────────────────
-      const validation = this.validationService.validate(extraction.payrollEntries)
+      await prisma.emailImport.update({ where: { id: emailImportId }, data: { processingStatus: 'PROCESSING' } })
+
+      // ── Step 3: Validate (payroll docs only) ───────────────────────────────
+      const validation = workerOnlyDoc
+        ? { isValid: true, errors: [] }
+        : this.validationService.validate(extraction.payrollEntries)
 
       // ── Step 4: Find / create company ─────────────────────────────────────
-      const companyName = extraction.payrollEntries[0]?.companyName || emailImport.from?.split('@')[1]?.split('.')[0] || 'Unknown'
+      const companyName = extraction.payrollEntries[0]?.companyName
+        || extraction.workerData[0]?.agency
+        || emailImport.from?.split('@')[1]?.split('.')[0]
+        || 'Unknown'
       const payrollWeek = extraction.payrollEntries[0]?.payrollWeek || new Date().toISOString().split('T')[0]
       const company = await this.resolveCompany(companyName, emailImport.from)
 
@@ -87,6 +98,23 @@ export class EmailProcessingService {
             else if (result.action === 'updated') workersUpdated++
           }
         }
+      }
+
+      // ── Worker-only docs (CIS / contractor registration) ──────────────────
+      // No payroll submission needed — just log and complete.
+      if (workerOnlyDoc && extraction.payrollEntries.length === 0) {
+        await prisma.workflowLog.create({
+          data: {
+            emailImportId,
+            state: 'COMPLETED',
+            message: `Contractor registration processed — ${workersCreated} created, ${workersUpdated} updated in company "${company.name}"`,
+          },
+        })
+        await prisma.emailImport.update({
+          where: { id: emailImportId },
+          data: { isProcessed: true, processedAt: new Date(), processingStatus: 'COMPLETED' },
+        })
+        return { success: true, emailImportId, workersCreated, workersUpdated, state: 'COMPLETED' }
       }
 
       // ── Step 6: Create payroll submission ─────────────────────────────────
@@ -163,7 +191,7 @@ export class EmailProcessingService {
       })
       await prisma.emailImport.update({
         where: { id: emailImportId },
-        data: { isProcessed: true, processedAt: new Date() },
+        data: { isProcessed: true, processedAt: new Date(), processingStatus: 'COMPLETED' },
       })
 
       return {
