@@ -27,6 +27,7 @@ export interface GmailAttachmentMeta {
   mimeType: string
   size: number
   gmailAttachmentId: string   // Gmail internal attachment ID (needed to download)
+  inlineData?: string         // base64url-encoded data for small inline attachments
 }
 
 // ── Service ──────────────────────────────────────────────────────────────────
@@ -235,12 +236,13 @@ export class GmailService {
   ): GmailAttachmentMeta[] {
     if (!payload) return result
 
-    if (payload.filename && payload.body?.attachmentId) {
+    if (payload.filename && (payload.body?.attachmentId || payload.body?.data)) {
       result.push({
         filename:          payload.filename,
         mimeType:          payload.mimeType || 'application/octet-stream',
-        size:              payload.body.size || 0,
-        gmailAttachmentId: payload.body.attachmentId,
+        size:              payload.body?.size || 0,
+        gmailAttachmentId: payload.body?.attachmentId || '',
+        inlineData:        payload.body?.data || undefined,
       })
     }
 

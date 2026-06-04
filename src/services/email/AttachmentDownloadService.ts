@@ -47,8 +47,10 @@ export class AttachmentDownloadService {
       if (!dbRecord) continue
 
       try {
-        // Download bytes from Gmail
-        const buffer = await this.gmail.downloadAttachmentBuffer(gmailMessageId, meta.gmailAttachmentId)
+        // Small attachments may be inlined in the message (no separate attachmentId)
+        const buffer = meta.inlineData
+          ? Buffer.from(meta.inlineData.replace(/-/g, '+').replace(/_/g, '/'), 'base64')
+          : await this.gmail.downloadAttachmentBuffer(gmailMessageId, meta.gmailAttachmentId)
 
         // Write to OS temp dir with a unique prefix to avoid collisions
         const safeName  = meta.filename.replace(/[^a-zA-Z0-9.\-_]/g, '_')

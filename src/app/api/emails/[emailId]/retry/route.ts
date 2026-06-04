@@ -58,7 +58,9 @@ export async function POST(
             const meta = parsed.attachments.find(m => m.filename === att.originalFilename)
             if (!meta) continue
             try {
-              const buffer = await gmail.downloadAttachmentBuffer(email.messageId, meta.gmailAttachmentId)
+              const buffer = meta.inlineData
+                  ? Buffer.from(meta.inlineData.replace(/-/g, '+').replace(/_/g, '/'), 'base64')
+                  : await gmail.downloadAttachmentBuffer(email.messageId, meta.gmailAttachmentId)
               const safeName = att.originalFilename.replace(/[^a-zA-Z0-9.\-_]/g, '_')
               const localPath = path.join(os.tmpdir(), `cube_retry_${emailId.slice(-6)}_${safeName}`)
               fs.writeFileSync(localPath, buffer)

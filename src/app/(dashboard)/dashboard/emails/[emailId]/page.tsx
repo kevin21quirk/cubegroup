@@ -5,7 +5,7 @@ import { ArrowLeft, Paperclip, Clock, Mail, AlertCircle, CheckCircle, FileText, 
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
-import { format } from 'date-fns'
+import { LocalTime } from '@/components/ui/local-time'
 import { EmailRetryButton } from '@/components/emails/email-retry-button'
 
 export const dynamic = 'force-dynamic'
@@ -91,7 +91,7 @@ export default async function EmailDetailPage({ params }: { params: Promise<{ em
                 </div>
                 <div>
                   <p className="text-muted-foreground font-medium">Received</p>
-                  <p>{format(new Date(email.receivedAt), 'dd MMM yyyy HH:mm')}</p>
+                  <p><LocalTime date={email.receivedAt} fmt="dd MMM yyyy HH:mm" /></p>
                 </div>
                 {email.detectedCompany && (
                   <div>
@@ -178,7 +178,7 @@ export default async function EmailDetailPage({ params }: { params: Promise<{ em
                         <p className="text-xs text-red-600 mt-0.5">{log.errorDetails}</p>
                       )}
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {format(new Date(log.createdAt), 'HH:mm:ss dd MMM')}
+                        <LocalTime date={log.createdAt} fmt="HH:mm:ss dd MMM" />
                         {log.duration && ` · ${log.duration}ms`}
                       </p>
                     </li>
@@ -360,7 +360,7 @@ export default async function EmailDetailPage({ params }: { params: Promise<{ em
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Processed</span>
-                <span>{email.isProcessed ? format(new Date(email.processedAt!), 'dd MMM HH:mm') : '—'}</span>
+                <span>{email.isProcessed ? <LocalTime date={email.processedAt!} fmt="dd MMM HH:mm" /> : '—'}</span>
               </div>
             </CardContent>
           </Card>
