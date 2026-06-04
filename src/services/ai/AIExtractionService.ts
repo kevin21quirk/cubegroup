@@ -81,7 +81,20 @@ export class AIExtractionService {
   }
 
   // ── Main extraction – text-based attachments ──────────────────────────────
+  // Large CSVs are automatically split into row-batches of BATCH_ROWS to keep
+  // AI output within the token limit, then merged back into one result.
+  private static readonly BATCH_ROWS     = 60    // rows per AI call
+  private static readonly CHAR_THRESHOLD = 4000  // only batch above this size
+
   async extractFromText(content: string, fileType: string): Promise<FullExtractionResult> {
+    const isCSV = /^(CSV|csv|text\/csv)$/i.test(fileType)
+    if (isCSV && content.length > AIExtractionService.CHAR_THRESHOLD) {
+      return this.batchExtractCSV(content)
+    }
+    return this.extractSingleChunk(content, fileType)
+  }
+
+  private async extractSingleChunk(content: string, fileType: string): Promise<FullExtractionResult> {
     try {
       const message = await this.callWithFallback({
         max_tokens: 8096,
@@ -92,6 +105,38 @@ export class AIExtractionService {
       return this.parseResponse(message)
     } catch (error) {
       return { success: false, documentType: 'UNKNOWN', payrollEntries: [], workerData: [], confidence: 0, error: error instanceof Error ? error.message : 'AI extraction failed' }
+    }
+  }
+
+  private async batchExtractCSV(content: string): Promise<FullExtractionResult> {
+    const lines  = content.split('\n')
+    const header = lines[0]
+    const rows   = lines.slice(1).filter(l => l.trim())
+    const size   = AIExtractionService.BATCH_ROWS
+
+    const batches: string[] = []
+    for (let i = 0; i < rows.length; i += size) {
+      batches.push([header, ...rows.slice(i, i + size)].join('\n'))
+    }
+
+    const results: FullExtractionResult[] = []
+    for (const batch of batches) {
+      const r = await this.extractSingleChunk(batch, 'CSV')
+      if (r.success) results.push(r)
+    }
+
+    if (results.length === 0) {
+      return { success: false, documentType: 'UNKNOWN', payrollEntries: [], workerData: [], confidence: 0, error: 'All CSV batches failed' }
+    }
+    if (results.length === 1) return results[0]
+
+    return {
+      success:        true,
+      documentType:   results[0].documentType,
+      payrollEntries: results.flatMap(r => r.payrollEntries),
+      workerData:     results.flatMap(r => r.workerData),
+      companyData:    results.find(r => r.companyData)?.companyData,
+      confidence:     results.reduce((s, r) => s + r.confidence, 0) / results.length,
     }
   }
 
