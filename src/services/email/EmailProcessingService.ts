@@ -247,20 +247,17 @@ export class EmailProcessingService {
   }
 
   // ── Read every attachment file and run AI extraction ──────────────────────
+  // All attachments are processed independently; results are then merged so
+  // e.g. a worker-info CSV + a timesheet CSV in the same email are both handled.
   private async extractFromAttachments(attachments: any[]): Promise<FullExtractionResult> {
     const diagnostics: string[] = []
-    const empty = (): FullExtractionResult => ({
-      success: false, documentType: 'UNKNOWN', payrollEntries: [], workerData: [], confidence: 0,
-      error: `No processable attachments. Details: ${diagnostics.join(' | ') || 'no attachments passed'}`,
-    })
+    const successful: FullExtractionResult[] = []
 
     for (const att of attachments) {
       let result: FullExtractionResult
 
       try {
         const isImage = att.documentType === 'IMAGE' || (att.mimeType || '').startsWith('image/')
-
-        // Resolve file path — temp file may be gone on serverless retry
         const filePath = att.localPath || att.storageUrl
         const fileOnDisk = filePath && fs.existsSync(filePath)
 
@@ -296,14 +293,56 @@ export class EmailProcessingService {
               processedAt: new Date(),
             },
           })
-          return result
+          successful.push(result)
+        } else {
+          diagnostics.push(`${diagBase} → AI returned success=false: ${result.error ?? 'no error'}`)
         }
-        diagnostics.push(`${diagBase} → AI returned success=false: ${result.error ?? 'no error'}`)
       } catch (e: any) {
         diagnostics.push(`${att.filename} → threw: ${e?.message ?? e}`)
       }
     }
-    return empty()
+
+    if (successful.length === 0) {
+      return {
+        success: false, documentType: 'UNKNOWN', payrollEntries: [], workerData: [], confidence: 0,
+        error: `No processable attachments. Details: ${diagnostics.join(' | ') || 'no attachments passed'}`,
+      }
+    }
+
+    if (successful.length === 1) return successful[0]
+
+    return this.mergeExtractionResults(successful)
+  }
+
+  // ── Merge results from multiple attachments into one combined result ────────
+  private mergeExtractionResults(results: FullExtractionResult[]): FullExtractionResult {
+    const allPayrollEntries = results.flatMap(r => r.payrollEntries)
+    const allWorkerData     = results.flatMap(r => r.workerData)
+    const companyData       = results.find(r => r.companyData)?.companyData
+
+    const types      = results.map(r => r.documentType)
+    const hasSheet   = types.some(t => ['TIMESHEET', 'INVOICE'].includes(t))
+    const hasWorkers = types.some(t => ['WORKER_LIST', 'CONTRACTOR_REGISTRATION', 'CIS'].includes(t))
+    const hasCompany = types.some(t => t === 'COMPANY_INFO')
+
+    // If exactly one type is present keep it; otherwise MIXED covers everything
+    let documentType: FullExtractionResult['documentType'] = 'MIXED'
+    if (hasSheet && !hasWorkers && !hasCompany) {
+      documentType = results.find(r => ['TIMESHEET', 'INVOICE'].includes(r.documentType))!.documentType
+    } else if (hasWorkers && !hasSheet && !hasCompany) {
+      documentType = 'WORKER_LIST'
+    } else if (hasCompany && !hasSheet && !hasWorkers) {
+      documentType = 'COMPANY_INFO'
+    }
+
+    return {
+      success:        true,
+      documentType,
+      payrollEntries: allPayrollEntries,
+      workerData:     allWorkerData,
+      companyData,
+      confidence:     results.reduce((s, r) => s + r.confidence, 0) / results.length,
+    }
   }
 
   // ── Enrich company with AI-extracted data ─────────────────────────────────
