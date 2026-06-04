@@ -33,10 +33,10 @@ export class AIExtractionService {
   private anthropic: Anthropic
 
   private static readonly FALLBACK_MODELS = [
-    'claude-3-5-sonnet-latest',
-    'claude-3-5-haiku-latest',
-    'claude-3-haiku-20240307',
-    'claude-3-sonnet-20240229',
+    'claude-sonnet-4-5',
+    'claude-haiku-4-5',
+    'claude-sonnet-4-6',
+    'claude-opus-4-5',
   ]
 
   constructor() {
@@ -46,7 +46,7 @@ export class AIExtractionService {
   }
 
   private getModel(): string {
-    return process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-latest'
+    return process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5'
   }
 
   private async callWithFallback(params: Omit<Parameters<typeof this.anthropic.messages.create>[0], 'model'>) {
