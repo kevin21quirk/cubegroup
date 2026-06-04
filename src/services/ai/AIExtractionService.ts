@@ -83,12 +83,11 @@ export class AIExtractionService {
   // ── Main extraction – text-based attachments ──────────────────────────────
   // Large CSVs are automatically split into row-batches of BATCH_ROWS to keep
   // AI output within the token limit, then merged back into one result.
-  private static readonly BATCH_ROWS     = 15    // rows per AI call (35+ fields/worker × 15 ≈ 7k chars output, safe within 8k token limit)
-  private static readonly CHAR_THRESHOLD = 2000  // only batch above this size
+  private static readonly BATCH_ROWS = 15  // rows per AI call — keeps JSON output well under 8k token limit
 
   async extractFromText(content: string, fileType: string): Promise<FullExtractionResult> {
-    const isCSV = /^(CSV|csv|text\/csv)$/i.test(fileType)
-    if (isCSV && content.length > AIExtractionService.CHAR_THRESHOLD) {
+    // Always batch CSVs: even small files can produce large JSON output (dense payroll fields)
+    if (/^(CSV|csv|text\/csv)$/i.test(fileType)) {
       return this.batchExtractCSV(content)
     }
     return this.extractSingleChunk(content, fileType)
