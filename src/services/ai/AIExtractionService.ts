@@ -19,11 +19,24 @@ export interface WorkerExtractionData {
   pensionApplicable?: boolean; apprenticeshipLevy?: boolean
 }
 
+export interface CompanyExtractionData {
+  name?: string
+  tradingName?: string
+  companyNumber?: string
+  vatNumber?: string
+  address?: string
+  phone?: string
+  email?: string
+  website?: string
+  contactName?: string
+}
+
 export interface FullExtractionResult {
   success: boolean
-  documentType: 'TIMESHEET' | 'INVOICE' | 'CONTRACTOR_REGISTRATION' | 'CIS' | 'MIXED' | 'UNKNOWN'
+  documentType: 'TIMESHEET' | 'INVOICE' | 'CONTRACTOR_REGISTRATION' | 'WORKER_LIST' | 'COMPANY_INFO' | 'CIS' | 'MIXED' | 'UNKNOWN'
   payrollEntries: NormalizedPayrollData[]
-  workerData: WorkerExtractionData[]      // worker profile info found in document
+  workerData: WorkerExtractionData[]
+  companyData?: CompanyExtractionData
   confidence: number
   rawResponse?: string
   error?: string
@@ -113,19 +126,41 @@ export class AIExtractionService {
   private getSystemPrompt(): string {
     return `You are an expert payroll and contractor data extraction AI for Cube Group Ltd, a UK umbrella payroll company.
 
-You process documents sent by recruitment agencies: timesheets, invoices, contractor registration forms and CIS documents.
+You process documents sent by recruitment agencies: timesheets, invoices, contractor registration forms, worker lists, and company information documents.
 
 CRITICAL RULES:
-1. Extract data ONLY – never calculate, assume or invent values
-2. Preserve original values exactly
-3. Handle any column naming variation, layout or format
-4. Missing fields → empty string or 0 for numbers, null for dates
-5. Return ONLY a valid JSON object – no markdown, no explanation
+1. Classify the document type FIRST, then extract data accordingly
+2. Extract data ONLY – never calculate, assume or invent values
+3. Preserve original values exactly
+4. Handle any column naming variation, layout or format
+5. Missing fields → empty string or 0 for numbers, null for dates
+6. Return ONLY a valid JSON object – no markdown, no explanation
+
+DOCUMENT TYPE CLASSIFICATION:
+- TIMESHEET: Contains hours worked, pay rates, or earnings for workers over a pay period. Should create a payroll submission.
+- WORKER_LIST: A list or spreadsheet of worker/contractor names and personal details (no earnings data). Should create/update worker records.
+- CONTRACTOR_REGISTRATION: A registration or new starter form for a single contractor with personal, tax, and bank details.
+- COMPANY_INFO: Contains company details, contact info, or registration data for an agency/employer. Should create/update a company.
+- INVOICE: A billing document from an agency to Cube Group.
+- CIS: A CIS (Construction Industry Scheme) document with subcontractor and tax deduction details.
+- MIXED: Contains a mix of the above (e.g. a timesheet that also includes new starter data).
+- UNKNOWN: Cannot determine document type or no useful data found.
 
 OUTPUT SCHEMA:
 {
-  "documentType": "TIMESHEET | INVOICE | CONTRACTOR_REGISTRATION | CIS | MIXED | UNKNOWN",
+  "documentType": "TIMESHEET | WORKER_LIST | CONTRACTOR_REGISTRATION | COMPANY_INFO | INVOICE | CIS | MIXED | UNKNOWN",
   "confidence": 0.0-1.0,
+  "companyData": {
+    "name": "",
+    "tradingName": "",
+    "companyNumber": "",
+    "vatNumber": "",
+    "address": "",
+    "phone": "",
+    "email": "",
+    "website": "",
+    "contactName": ""
+  },
   "payrollEntries": [
     {
       "companyName": "agency/client name",
@@ -164,12 +199,14 @@ OUTPUT SCHEMA:
 }
 
 FIELD MAPPING GUIDANCE:
-- For timesheets: focus on payrollEntries. Each row = one worker for that pay period.
-- For invoices: treat each line item as a payroll entry where applicable.
-- For contractor registration / new starter forms: populate workerData with personal details.
-- For CIS documents: extract subcontractor details into workerData and CIS amounts into payrollEntries.
-- totalGrossPay and grossPay should both reflect the total gross earnings for the worker.
-- If hourly rate and hours are present but gross is missing, do NOT calculate – leave grossPay as 0.`
+- TIMESHEET: Populate payrollEntries. Each row = one worker for that pay period. Set companyData.name to the agency/employer name if visible.
+- WORKER_LIST: Populate workerData with each worker's details. Set companyData.name to the agency name if present.
+- CONTRACTOR_REGISTRATION: Populate workerData for the single contractor. Include all personal/tax/bank details.
+- COMPANY_INFO: Populate companyData only. Leave payrollEntries and workerData empty.
+- INVOICE: Populate payrollEntries as line items. Set companyData to the issuing company.
+- CIS: Populate workerData for subcontractors and payrollEntries for CIS amounts.
+- MIXED: Populate all relevant sections.
+- totalGrossPay and grossPay should both reflect total gross earnings. If hourly rate and hours are present but gross is missing, do NOT calculate – leave grossPay as 0.`
   }
 
   private buildTextPrompt(content: string, fileType: string): string {
@@ -189,11 +226,27 @@ Return ONLY a valid JSON object matching the schema in the system prompt. All nu
     const clean = responseText.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim()
     const parsed = JSON.parse(clean)
 
+    const companyRaw = parsed.companyData
+    const companyData: CompanyExtractionData | undefined = companyRaw && Object.values(companyRaw).some(v => v)
+      ? {
+          name:          companyRaw.name          || undefined,
+          tradingName:   companyRaw.tradingName   || undefined,
+          companyNumber: companyRaw.companyNumber || undefined,
+          vatNumber:     companyRaw.vatNumber     || undefined,
+          address:       companyRaw.address       || undefined,
+          phone:         companyRaw.phone         || undefined,
+          email:         companyRaw.email         || undefined,
+          website:       companyRaw.website       || undefined,
+          contactName:   companyRaw.contactName   || undefined,
+        }
+      : undefined
+
     return {
       success: true,
       documentType: parsed.documentType || 'UNKNOWN',
       payrollEntries: this.normalizePayrollEntries(parsed.payrollEntries || parsed.data || []),
       workerData: parsed.workerData || [],
+      companyData,
       confidence: parsed.confidence || 0.8,
       rawResponse: responseText,
     }

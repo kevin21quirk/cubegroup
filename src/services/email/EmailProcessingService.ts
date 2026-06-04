@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { getAIExtractionService, FullExtractionResult } from '../ai/AIExtractionService'
+import { getAIExtractionService, FullExtractionResult, CompanyExtractionData } from '../ai/AIExtractionService'
 import { getValidationService } from '../validation/ValidationService'
 import { getSpreadsheetService } from '../spreadsheet/SpreadsheetService'
 import { getFileDeliveryService } from '../delivery/FileDeliveryService'
@@ -65,8 +65,12 @@ export class EmailProcessingService {
       await prisma.emailImport.update({ where: { id: emailImportId }, data: { processingStatus: 'EXTRACTING' } })
       const extraction = await this.extractFromAttachments(attachments)
 
-      const workerOnlyDoc = ['CONTRACTOR_REGISTRATION', 'CIS'].includes(extraction.documentType)
-      const hasContent    = extraction.payrollEntries.length > 0 || extraction.workerData.length > 0
+      // Determine routing based on document type
+      const docType = extraction.documentType
+      const isWorkerDoc   = ['CONTRACTOR_REGISTRATION', 'WORKER_LIST', 'CIS'].includes(docType)
+      const isCompanyDoc  = docType === 'COMPANY_INFO'
+      const isTimesheetDoc = ['TIMESHEET', 'INVOICE', 'MIXED'].includes(docType)
+      const hasContent    = extraction.payrollEntries.length > 0 || extraction.workerData.length > 0 || !!extraction.companyData
 
       const extractionErr = [extraction.error, redownloadError ? `re-download: ${redownloadError}` : undefined].filter(Boolean).join('; ') || 'AI extraction returned no data'
       if (!extraction.success || !hasContent) {
@@ -75,26 +79,43 @@ export class EmailProcessingService {
         return { success: false, emailImportId, error: extractionErr }
       }
 
+      // ── Log document classification in timeline ────────────────────────────
+      await prisma.workflowLog.create({
+        data: {
+          emailImportId,
+          state: 'AI_PROCESSING',
+          message: `AI classified document as: ${docType} (confidence: ${Math.round(extraction.confidence * 100)}%). Entries: ${extraction.payrollEntries.length} payroll, ${extraction.workerData.length} workers, company: ${extraction.companyData?.name || 'none'}.`,
+        },
+      })
+
       await prisma.emailImport.update({ where: { id: emailImportId }, data: { processingStatus: 'PROCESSING' } })
 
-      // ── Step 3: Validate (payroll docs only) ───────────────────────────────
-      const validation = workerOnlyDoc
-        ? { isValid: true, errors: [] }
-        : this.validationService.validate(extraction.payrollEntries)
-
-      // ── Step 4: Find / create company ─────────────────────────────────────
-      const companyName = extraction.payrollEntries[0]?.companyName
+      // ── Step 3: Find / create company ─────────────────────────────────────
+      const companyName = extraction.companyData?.name
+        || extraction.payrollEntries[0]?.companyName
         || extraction.workerData[0]?.agency
         || extraction.workerData[0]?.tradingName
         || 'Unknown Company'
       const payrollWeek = extraction.payrollEntries[0]?.payrollWeek || new Date().toISOString().split('T')[0]
       const company = await this.resolveCompany(companyName, emailImport.from)
 
-      // ── Step 5: Upsert workers ─────────────────────────────────────────────
+      // ── COMPANY_INFO doc → update company details and finish ───────────────
+      if (isCompanyDoc) {
+        await this.enrichCompany(company.id, extraction.companyData!)
+        await prisma.workflowLog.create({
+          data: { emailImportId, state: 'COMPLETED', message: `Company information processed — updated details for "${company.name}"` },
+        })
+        await prisma.emailImport.update({
+          where: { id: emailImportId },
+          data: { isProcessed: true, processedAt: new Date(), processingStatus: 'COMPLETED' },
+        })
+        return { success: true, emailImportId, state: 'COMPLETED' }
+      }
+
+      // ── Step 4: Upsert workers ─────────────────────────────────────────────
       let workersCreated = 0
       let workersUpdated = 0
 
-      // From full contractor registration data
       for (const wd of extraction.workerData) {
         const result = await this.workerUpsert.upsertFromExtraction(company.id, wd)
         if (result.action === 'created') workersCreated++
@@ -102,7 +123,7 @@ export class EmailProcessingService {
       }
 
       // From payroll entries (timesheets with worker names only)
-      if (extraction.workerData.length === 0) {
+      if (extraction.workerData.length === 0 && extraction.payrollEntries.length > 0) {
         for (const entry of extraction.payrollEntries) {
           if (entry.firstName || entry.workerName) {
             const result = await this.workerUpsert.upsertFromPayrollEntry(company.id, entry)
@@ -112,14 +133,13 @@ export class EmailProcessingService {
         }
       }
 
-      // ── Worker-only docs (CIS / contractor registration) ──────────────────
-      // No payroll submission needed — just log and complete.
-      if (workerOnlyDoc && extraction.payrollEntries.length === 0) {
+      // ── WORKER_LIST / CONTRACTOR_REGISTRATION → workers only, no payroll ───
+      if (isWorkerDoc && extraction.payrollEntries.length === 0) {
         await prisma.workflowLog.create({
           data: {
             emailImportId,
             state: 'COMPLETED',
-            message: `Contractor registration processed — ${workersCreated} created, ${workersUpdated} updated in company "${company.name}"`,
+            message: `${docType} processed — ${workersCreated} worker(s) created, ${workersUpdated} updated in company "${company.name}"`,
           },
         })
         await prisma.emailImport.update({
@@ -128,6 +148,11 @@ export class EmailProcessingService {
         })
         return { success: true, emailImportId, workersCreated, workersUpdated, state: 'COMPLETED' }
       }
+
+      // ── Step 5: Validate (timesheet/invoice/mixed only) ────────────────────
+      const validation = isWorkerDoc
+        ? { isValid: true, errors: [] }
+        : this.validationService.validate(extraction.payrollEntries)
 
       // ── Step 6: Create payroll submission ─────────────────────────────────
       const workflowState = validation.isValid ? 'SPREADSHEET_GENERATED' : 'VALIDATION_FAILED'
@@ -279,6 +304,21 @@ export class EmailProcessingService {
       }
     }
     return empty()
+  }
+
+  // ── Enrich company with AI-extracted data ─────────────────────────────────
+  private async enrichCompany(companyId: string, data: CompanyExtractionData) {
+    const update: Record<string, any> = {}
+    if (data.tradingName)   update.tradingName   = data.tradingName
+    if (data.companyNumber) update.companyNumber = data.companyNumber
+    if (data.vatNumber)     update.vatNumber     = data.vatNumber
+    if (data.phone)         update.phone         = data.phone
+    if (data.email)         update.email         = data.email
+    if (data.website)       update.website       = data.website
+    if (data.address)       update.address       = data.address
+    if (Object.keys(update).length > 0) {
+      await prisma.company.update({ where: { id: companyId }, data: update }).catch(() => {/* ignore unknown fields */})
+    }
   }
 
   // ── Find or create company matched on name / sender domain ─────────────────
