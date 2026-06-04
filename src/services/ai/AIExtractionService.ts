@@ -32,17 +32,45 @@ export interface FullExtractionResult {
 export class AIExtractionService {
   private anthropic: Anthropic
 
+  private static readonly FALLBACK_MODELS = [
+    'claude-3-5-sonnet-latest',
+    'claude-3-5-haiku-latest',
+    'claude-3-haiku-20240307',
+    'claude-3-sonnet-20240229',
+  ]
+
   constructor() {
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not configured')
     this.anthropic = new Anthropic({ apiKey })
   }
 
+  private getModel(): string {
+    return process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-latest'
+  }
+
+  private async callWithFallback(params: Omit<Parameters<typeof this.anthropic.messages.create>[0], 'model'>) {
+    const primary = this.getModel()
+    const models = [primary, ...AIExtractionService.FALLBACK_MODELS.filter(m => m !== primary)]
+    let lastError: unknown
+    for (const model of models) {
+      try {
+        return await this.anthropic.messages.create({ ...params, model } as any)
+      } catch (e: any) {
+        if (e?.status === 404 || e?.message?.includes('not_found')) {
+          lastError = e
+          continue
+        }
+        throw e
+      }
+    }
+    throw lastError
+  }
+
   // ── Main extraction – text-based attachments ──────────────────────────────
   async extractFromText(content: string, fileType: string): Promise<FullExtractionResult> {
     try {
-      const message = await this.anthropic.messages.create({
-        model: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022',
+      const message = await this.callWithFallback({
         max_tokens: 8096,
         temperature: 0.1,
         system: this.getSystemPrompt(),
@@ -57,8 +85,7 @@ export class AIExtractionService {
   // ── Vision extraction – image attachments ─────────────────────────────────
   async extractFromImage(base64: string, mediaType: string): Promise<FullExtractionResult> {
     try {
-      const message = await this.anthropic.messages.create({
-        model: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022',
+      const message = await this.callWithFallback({
         max_tokens: 8096,
         temperature: 0.1,
         system: this.getSystemPrompt(),
