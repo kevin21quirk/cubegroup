@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button'
 import { ArrowLeft, User, Building2, CreditCard, Phone, Mail, MapPin, FileText, Briefcase } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getWorker } from '@/app/actions/workers'
+import { getWorker, deleteWorker } from '@/app/actions/workers'
 import { LocalTime } from '@/components/ui/local-time'
+import { DeleteButton } from '@/components/ui/delete-button'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,13 +23,19 @@ export default async function WorkerDetailPage({ params }: { params: Promise<{ i
         <Link href="/dashboard/workers">
           <Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
         </Link>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <h1 className="text-3xl font-bold tracking-tight">{worker.firstName} {worker.lastName}</h1>
           <div className="flex items-center gap-2 mt-1">
             <Badge variant={w.isActive ? 'default' : 'secondary'}>{w.isActive ? 'Active' : 'Inactive'}</Badge>
             {w.cisStatus && <Badge variant="outline">CIS: {w.cisStatus}</Badge>}
           </div>
         </div>
+        <DeleteButton
+          action={deleteWorker.bind(null, id)}
+          label="Worker"
+          description={`This will permanently delete ${worker.firstName} ${worker.lastName} and all their payroll history. This cannot be undone.`}
+          redirectTo="/dashboard/workers"
+        />
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">

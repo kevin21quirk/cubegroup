@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button'
 import { ArrowLeft, Building2, Users, FileText, Edit, Mail, Phone, MapPin, CreditCard } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getCompany } from '@/app/actions/companies'
+import { getCompany, deleteCompany } from '@/app/actions/companies'
 import { LocalTime } from '@/components/ui/local-time'
+import { DeleteButton } from '@/components/ui/delete-button'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,12 +29,20 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
             {c.isActive ? 'Active' : 'Inactive'}
           </Badge>
         </div>
-        <Link href={`/dashboard/companies/${id}/edit`}>
-          <Button variant="outline" size="sm">
-            <Edit className="mr-2 h-4 w-4" />
-            Edit
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href={`/dashboard/companies/${id}/edit`}>
+            <Button variant="outline" size="sm">
+              <Edit className="mr-2 h-4 w-4" />
+              Edit
+            </Button>
+          </Link>
+          <DeleteButton
+            action={deleteCompany.bind(null, id)}
+            label="Company"
+            description="This will permanently delete the company and all associated data including workers and payroll submissions. This cannot be undone."
+            redirectTo="/dashboard/companies"
+          />
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
