@@ -47,10 +47,11 @@ export class EmailProcessingService {
       await this.workflowService.transitionState(emailImportId, 'ATTACHMENT_DOWNLOADED', 'Downloading attachments')
 
       // Self-healing: re-download from Gmail if local file and DB content are both missing
+      let redownloadError: string | undefined
       if (emailImport.messageId) {
         await getAttachmentDownloadService()
           .redownloadIfNeeded(emailImportId, emailImport.messageId)
-          .catch(e => console.warn('[processEmail] redownloadIfNeeded failed:', e?.message ?? e))
+          .catch(e => { redownloadError = e?.message ?? String(e) })
       }
 
       const attachments = await prisma.attachment.findMany({ where: { emailImportId } })
@@ -67,10 +68,11 @@ export class EmailProcessingService {
       const workerOnlyDoc = ['CONTRACTOR_REGISTRATION', 'CIS'].includes(extraction.documentType)
       const hasContent    = extraction.payrollEntries.length > 0 || extraction.workerData.length > 0
 
+      const extractionErr = [extraction.error, redownloadError ? `re-download: ${redownloadError}` : undefined].filter(Boolean).join('; ') || 'AI extraction returned no data'
       if (!extraction.success || !hasContent) {
-        await prisma.emailImport.update({ where: { id: emailImportId }, data: { processingStatus: 'FAILED', errorMessage: extraction.error || 'AI extraction returned no data' } })
-        await this.workflowService.markAsFailed(emailImportId, extraction.error || 'AI extraction returned no data', extraction.error)
-        return { success: false, emailImportId, error: extraction.error || 'AI extraction returned no data' }
+        await prisma.emailImport.update({ where: { id: emailImportId }, data: { processingStatus: 'FAILED', errorMessage: extractionErr } })
+        await this.workflowService.markAsFailed(emailImportId, extractionErr, extractionErr)
+        return { success: false, emailImportId, error: extractionErr }
       }
 
       await prisma.emailImport.update({ where: { id: emailImportId }, data: { processingStatus: 'PROCESSING' } })
@@ -221,7 +223,11 @@ export class EmailProcessingService {
 
   // ── Read every attachment file and run AI extraction ──────────────────────
   private async extractFromAttachments(attachments: any[]): Promise<FullExtractionResult> {
-    const empty: FullExtractionResult = { success: false, documentType: 'UNKNOWN', payrollEntries: [], workerData: [], confidence: 0, error: 'No processable attachments' }
+    const diagnostics: string[] = []
+    const empty = (): FullExtractionResult => ({
+      success: false, documentType: 'UNKNOWN', payrollEntries: [], workerData: [], confidence: 0,
+      error: `No processable attachments. Details: ${diagnostics.join(' | ') || 'no attachments passed'}`,
+    })
 
     for (const att of attachments) {
       let result: FullExtractionResult
@@ -233,15 +239,18 @@ export class EmailProcessingService {
         const filePath = att.localPath || att.storageUrl
         const fileOnDisk = filePath && fs.existsSync(filePath)
 
+        const diagBase = `[${att.filename}] localPath=${att.localPath ?? 'null'} onDisk=${fileOnDisk} extractedText=${att.extractedText ? att.extractedText.length + 'chars' : 'null'}`
+
         if (isImage) {
-          if (!fileOnDisk) continue  // images cannot fall back to DB text
+          if (!fileOnDisk) { diagnostics.push(`${diagBase} → skipped (image, no disk file)`); continue }
           const { base64, mediaType } = await this.fileReader.readImageAsBase64(filePath)
           result = await this.aiService.extractFromImage(base64, mediaType)
         } else if (fileOnDisk) {
+          diagnostics.push(`${diagBase} → reading from disk`)
           const content = await this.fileReader.readFile(filePath, att.mimeType || '', att.filename || '')
           result = await this.aiService.extractFromText(content.text, content.documentType)
         } else if (att.extractedText) {
-          // Temp file gone (serverless re-invocation) — use content stored in DB at download time
+          diagnostics.push(`${diagBase} → using DB extractedText`)
           const isBase64 = !/[\n\t,;"']/.test(att.extractedText.slice(0, 100)) && att.extractedText.length > 50
           const text = isBase64
             ? Buffer.from(att.extractedText, 'base64').toString('utf-8').slice(0, 8000)
@@ -249,7 +258,8 @@ export class EmailProcessingService {
           const docType = (att.documentType as string) || 'CSV'
           result = await this.aiService.extractFromText(text, docType)
         } else {
-          continue  // nothing to work with
+          diagnostics.push(`${diagBase} → skipped (no file, no extractedText)`)
+          continue
         }
 
         if (result.success) {
@@ -263,11 +273,12 @@ export class EmailProcessingService {
           })
           return result
         }
-      } catch {
-        // Try next attachment
+        diagnostics.push(`${diagBase} → AI returned success=false: ${result.error ?? 'no error'}`)
+      } catch (e: any) {
+        diagnostics.push(`${att.filename} → threw: ${e?.message ?? e}`)
       }
     }
-    return empty
+    return empty()
   }
 
   // ── Find or create company matched on name / sender domain ─────────────────
