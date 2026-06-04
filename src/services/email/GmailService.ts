@@ -289,13 +289,24 @@ export class GmailService {
       this.resolveLabel(gmail, toLabelName),
     ])
 
+    // Critical: move to Payroll-Processed and mark as read
     await gmail.users.messages.modify({
       userId: 'me',
       id:     messageId,
       requestBody: {
-        addLabelIds:    [toId, 'INBOX'],   // keep a copy visible in the main mailbox
+        addLabelIds:    [toId],
         removeLabelIds: [fromId, 'UNREAD'],
       },
+    })
+
+    // Best-effort: add INBOX so the email stays visible in the main mailbox.
+    // Done as a separate call so any failure here cannot block email ingestion.
+    await gmail.users.messages.modify({
+      userId: 'me',
+      id:     messageId,
+      requestBody: { addLabelIds: ['INBOX'] },
+    }).catch(err => {
+      console.warn('[GmailService] Could not add INBOX label (non-fatal):', err?.message ?? err)
     })
   }
 

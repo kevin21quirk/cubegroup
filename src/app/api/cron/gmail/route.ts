@@ -145,7 +145,9 @@ export async function GET(request: NextRequest) {
         }
 
         // ── 3f. Move message to processed label in Gmail ───────────────────
-        await gmailService.markAsProcessed(gmailMessageId)
+        await gmailService.markAsProcessed(gmailMessageId).catch(err => {
+          console.warn('[cron/gmail] markAsProcessed non-fatal error:', err?.message ?? err)
+        })
 
         // ── 3g. Log workflow: email received ──────────────────────────────
         await prisma.workflowLog.create({
