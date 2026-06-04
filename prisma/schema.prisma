@@ -396,6 +396,12 @@ model PayrollEntry {
   umbrellaFee           Float               @default(0)
   netToWorker           Float               @default(0)
 
+  // Tax / payslip fields
+  taxRate               Float               @default(20.0) // CIS: 20% standard, 30% higher
+  taxAmount             Float               @default(0)
+  payslipStatus         String              @default("PENDING") // PENDING | APPROVED | SENT
+  payslipSentAt         DateTime?
+
   department            String?
   projectSite           String?
   payrollWeek           String

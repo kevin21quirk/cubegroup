@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { getPayslipService } from '@/services/payroll/PayslipService'
 
 export async function createPayrollSubmission(formData: FormData) {
   const companyId = formData.get('companyId') as string
@@ -53,8 +54,100 @@ export async function getPayrollSubmission(id: string) {
         include: {
           worker: true,
         },
+        orderBy: { createdAt: 'asc' },
       },
       invoices: true,
     },
   })
+}
+
+export async function updateEntryTaxRate(entryId: string, taxRate: number) {
+  const entry = await prisma.payrollEntry.findUnique({ where: { id: entryId } })
+  if (!entry) throw new Error('Entry not found')
+
+  const gross = entry.grossPay || entry.totalGrossPay
+  const taxAmount = parseFloat(((gross * taxRate) / 100).toFixed(2))
+  const netToWorker = parseFloat((gross - taxAmount).toFixed(2))
+
+  await prisma.payrollEntry.update({
+    where: { id: entryId },
+    data: { taxRate, taxAmount, netToWorker, payslipStatus: 'PENDING' },
+  })
+
+  revalidatePath(`/dashboard/payroll/${entry.payrollSubmissionId}`)
+}
+
+export async function saveBulkTaxRates(updates: { id: string; taxRate: number }[]) {
+  for (const { id, taxRate } of updates) {
+    await updateEntryTaxRate(id, taxRate)
+  }
+}
+
+export async function approveAllEntries(submissionId: string) {
+  await prisma.payrollEntry.updateMany({
+    where: { payrollSubmissionId: submissionId, payslipStatus: 'PENDING' },
+    data: { payslipStatus: 'APPROVED' },
+  })
+  revalidatePath(`/dashboard/payroll/${submissionId}`)
+}
+
+export async function sendPayslipsForSubmission(submissionId: string) {
+  const submission = await prisma.payrollSubmission.findUnique({
+    where: { id: submissionId },
+    include: {
+      company: true,
+      payrollEntries: {
+        where: { payslipStatus: { in: ['APPROVED', 'PENDING'] } },
+        include: { worker: true },
+      },
+    },
+  })
+  if (!submission) throw new Error('Submission not found')
+
+  const svc = getPayslipService()
+  const results: { name: string; status: 'sent' | 'no_email' | 'error'; error?: string }[] = []
+
+  for (const e of submission.payrollEntries) {
+    const workerEmail = e.worker?.email ?? null
+    const gross = e.grossPay || e.totalGrossPay
+    const taxRate = e.taxRate ?? 20
+    const taxAmount = e.taxAmount || parseFloat(((gross * taxRate) / 100).toFixed(2))
+    const netToWorker = e.netToWorker || parseFloat((gross - taxAmount).toFixed(2))
+
+    const entry = {
+      id: e.id,
+      workerName: e.workerName,
+      firstName: e.firstName,
+      lastName: e.lastName,
+      payrollWeek: e.payrollWeek,
+      grossPay: gross,
+      taxRate,
+      taxAmount,
+      netToWorker,
+      hoursWorked: e.hoursWorked,
+      hourlyRate: e.hourlyRate,
+      companyName: submission.company.name,
+      workerEmail,
+    }
+
+    const name = [e.firstName, e.lastName].filter(Boolean).join(' ') || e.workerName
+    if (!workerEmail) {
+      results.push({ name, status: 'no_email' })
+      continue
+    }
+    try {
+      await svc.sendPayslip(entry)
+      results.push({ name, status: 'sent' })
+    } catch (err: any) {
+      results.push({ name, status: 'error', error: err?.message ?? String(err) })
+    }
+  }
+
+  await prisma.payrollSubmission.update({
+    where: { id: submissionId },
+    data: { workflowState: 'COMPLETED' },
+  })
+
+  revalidatePath(`/dashboard/payroll/${submissionId}`)
+  return results
 }
