@@ -42,41 +42,30 @@ export class GmailSendService {
     html: string,
     attachments?: EmailAttachment[],
   ): string {
+    const b = `boundary_${Date.now()}`
+    const hasAttachments = !!attachments?.length
+
+    // Content-Type MUST be a top-level header (before the blank line separator)
     const headers = [
       `From: ${fromName} <${fromEmail}>`,
       `To: ${to}`,
       `Subject: =?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`,
       'MIME-Version: 1.0',
+      `Content-Type: ${hasAttachments ? 'multipart/mixed' : 'multipart/alternative'}; boundary="${b}"`,
     ]
 
-    let body: string
+    // Body parts come after the blank line
+    const parts: string[] = [
+      `--${b}`,
+      'Content-Type: text/html; charset=UTF-8',
+      'Content-Transfer-Encoding: base64',
+      '',
+      Buffer.from(html, 'utf-8').toString('base64'),
+      '',
+    ]
 
-    if (!attachments?.length) {
-      const b = `boundary_${Date.now()}`
-      body = [
-        `Content-Type: multipart/alternative; boundary="${b}"`,
-        '',
-        `--${b}`,
-        'Content-Type: text/html; charset=UTF-8',
-        'Content-Transfer-Encoding: base64',
-        '',
-        Buffer.from(html, 'utf-8').toString('base64'),
-        '',
-        `--${b}--`,
-      ].join('\r\n')
-    } else {
-      const b = `boundary_${Date.now()}`
-      const parts: string[] = [
-        `Content-Type: multipart/mixed; boundary="${b}"`,
-        '',
-        `--${b}`,
-        'Content-Type: text/html; charset=UTF-8',
-        'Content-Transfer-Encoding: base64',
-        '',
-        Buffer.from(html, 'utf-8').toString('base64'),
-        '',
-      ]
-      for (const att of attachments) {
+    if (hasAttachments) {
+      for (const att of attachments!) {
         parts.push(
           `--${b}`,
           `Content-Type: ${att.mimeType}; name="${att.filename}"`,
@@ -87,11 +76,11 @@ export class GmailSendService {
           '',
         )
       }
-      parts.push(`--${b}--`)
-      body = parts.join('\r\n')
     }
 
-    const mime = [...headers, '', body].join('\r\n')
+    parts.push(`--${b}--`)
+
+    const mime = [...headers, '', ...parts].join('\r\n')
     return Buffer.from(mime).toString('base64url')
   }
 }
