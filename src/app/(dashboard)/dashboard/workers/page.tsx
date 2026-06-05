@@ -1,32 +1,78 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Users, Mail, Phone, Building2, Briefcase, CreditCard } from 'lucide-react'
+import { Plus, Users, Mail, Building2, Briefcase, CreditCard } from 'lucide-react'
 import Link from 'next/link'
 import { getWorkers } from '@/app/actions/workers'
+import { getCompanies } from '@/app/actions/companies'
+import { getSession } from '@/lib/auth'
 import { formatDate } from '@/lib/utils'
 import ImportDialog from '@/components/import/ImportDialog'
+import { WorkersCompanyFilter } from '@/components/workers/WorkersCompanyFilter'
 
-// Force dynamic rendering
 export const dynamic = 'force-dynamic'
 
-export default async function WorkersPage() {
-  const workers = await getWorkers()
+export default async function WorkersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ companyId?: string }>
+}) {
+  const { companyId: paramCompanyId } = await searchParams
+  const session = await getSession()
+  const isSuperAdmin = session?.role === 'SUPER_ADMIN'
 
+  // URL param overrides session company (allows admin to switch)
+  const effectiveCompanyId = paramCompanyId || session?.companyId
+
+  // Super admins can switch company via dropdown; staff are locked to their company
+  const companies = isSuperAdmin ? await getCompanies() : []
+  const selectedCompany = effectiveCompanyId
+    ? (companies.find(c => c.id === effectiveCompanyId) ?? { id: effectiveCompanyId, name: session?.companyId ? 'Your Company' : '' })
+    : null
+
+  // If no company context at all, prompt selection
+  if (!effectiveCompanyId) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Workers</h1>
+          <p className="text-muted-foreground">Select a company to view its workers</p>
+        </div>
+        <Card className="max-w-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              Select Company
+            </CardTitle>
+            <CardDescription>Choose a company to manage its workers</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <WorkersCompanyFilter companies={companies} />
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  const workers = await getWorkers(effectiveCompanyId)
   const activeWorkers = workers.filter(w => w.isActive).length
-  const totalPayrollEntries = workers.reduce((sum, w) => sum + w._count.payrollEntries, 0)
+  const totalEntries = workers.reduce((sum, w) => sum + w._count.payrollEntries, 0)
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Workers</h1>
           <p className="text-muted-foreground">
-            Manage contractors and workers across all companies
+            {selectedCompany?.name ?? effectiveCompanyId}
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {isSuperAdmin && (
+            <WorkersCompanyFilter companies={companies} selectedId={effectiveCompanyId} />
+          )}
           <ImportDialog entity="workers" />
-          <Link href="/dashboard/workers/new">
+          <Link href={`/dashboard/workers/new${effectiveCompanyId ? `?companyId=${effectiveCompanyId}` : ''}`}>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
               Add Worker
@@ -43,27 +89,27 @@ export default async function WorkersPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{workers.length}</div>
-            <p className="text-xs text-muted-foreground">Total workers</p>
+            <p className="text-xs text-muted-foreground">Registered workers</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active This Month</CardTitle>
+            <CardTitle className="text-sm font-medium">Active Workers</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{activeWorkers}</div>
-            <p className="text-xs text-muted-foreground">Active workers</p>
+            <p className="text-xs text-muted-foreground">Currently active</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">New This Week</CardTitle>
+            <CardTitle className="text-sm font-medium">Payroll Entries</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalPayrollEntries}</div>
-            <p className="text-xs text-muted-foreground">Payroll entries</p>
+            <div className="text-2xl font-bold">{totalEntries}</div>
+            <p className="text-xs text-muted-foreground">Total entries</p>
           </CardContent>
         </Card>
       </div>
@@ -72,14 +118,14 @@ export default async function WorkersPage() {
         <Card>
           <CardHeader>
             <CardTitle>Worker Directory</CardTitle>
-            <CardDescription>All registered workers and contractors</CardDescription>
+            <CardDescription>No workers registered for this company yet</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="text-center py-12 text-muted-foreground">
               <Users className="mx-auto h-12 w-12 mb-4 opacity-50" />
               <p className="text-lg font-medium">No workers yet</p>
               <p className="text-sm mt-2">Add workers to start tracking payroll</p>
-              <Link href="/dashboard/workers/new">
+              <Link href={`/dashboard/workers/new${effectiveCompanyId ? `?companyId=${effectiveCompanyId}` : ''}`}>
                 <Button className="mt-4" variant="outline">
                   <Plus className="mr-2 h-4 w-4" />
                   Add Your First Worker
@@ -106,7 +152,7 @@ export default async function WorkersPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-medium">{worker.firstName} {worker.lastName}</p>
-                          <Badge variant={worker.isActive ? "default" : "secondary"} className="text-xs">
+                          <Badge variant={worker.isActive ? 'default' : 'secondary'} className="text-xs">
                             {worker.isActive ? 'Active' : 'Inactive'}
                           </Badge>
                           {(worker as any).cisStatus && (
@@ -114,10 +160,6 @@ export default async function WorkersPage() {
                           )}
                         </div>
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 mt-1 text-xs text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Building2 className="h-3 w-3" />
-                            <span>{worker.company.name}</span>
-                          </div>
                           {(worker as any).nationalInsurance && (
                             <div className="flex items-center gap-1">
                               <CreditCard className="h-3 w-3" />

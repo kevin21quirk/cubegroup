@@ -121,21 +121,31 @@ export async function createWorker(formData: FormData) {
   redirect('/dashboard/workers')
 }
 
-export async function getWorkers() {
+export async function getWorkers(companyId?: string) {
   const session = await getSession()
   const isStaff = session?.role === 'STAFF'
   const assignedIds = session?.assignedCompanyIds ?? []
 
+  // Explicit arg > session company > staff fallback
+  const effectiveCompanyId = companyId || session?.companyId
+
+  let where: Record<string, any> = {}
+  if (effectiveCompanyId) {
+    // STAFF security: ensure this company is one they're assigned to
+    if (isStaff && assignedIds.length > 0 && !assignedIds.includes(effectiveCompanyId)) {
+      return []
+    }
+    where = { companyId: effectiveCompanyId }
+  } else if (isStaff && assignedIds.length > 0) {
+    where = { companyId: { in: assignedIds } }
+  }
+
   return await prisma.worker.findMany({
-    orderBy: { createdAt: 'desc' },
-    where: isStaff && assignedIds.length > 0 ? { companyId: { in: assignedIds } } : undefined,
+    orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+    where: Object.keys(where).length > 0 ? where : undefined,
     include: {
       company: true,
-      _count: {
-        select: {
-          payrollEntries: true,
-        },
-      },
+      _count: { select: { payrollEntries: true } },
     },
   })
 }
