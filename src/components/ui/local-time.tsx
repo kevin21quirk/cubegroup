@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 interface LocalTimeProps {
   date: string | Date
   /** date-fns style format hint; we replicate the two used formats */
-  fmt?: 'dd MMM yyyy HH:mm' | 'HH:mm:ss dd MMM' | 'dd MMM HH:mm'
+  fmt?: 'dd MMM yyyy HH:mm' | 'HH:mm:ss dd MMM' | 'dd MMM HH:mm' | 'dd MMM yyyy'
 }
 
 function toLocalString(date: Date, fmt: LocalTimeProps['fmt']): string {
@@ -21,6 +21,7 @@ function toLocalString(date: Date, fmt: LocalTimeProps['fmt']): string {
   switch (fmt) {
     case 'HH:mm:ss dd MMM':   return `${d.HH}:${d.mm}:${d.ss} ${d.dd} ${d.MMM}`
     case 'dd MMM HH:mm':      return `${d.dd} ${d.MMM} ${d.HH}:${d.mm}`
+    case 'dd MMM yyyy':        return `${d.dd} ${d.MMM} ${d.yyyy}`
     case 'dd MMM yyyy HH:mm':
     default:                   return `${d.dd} ${d.MMM} ${d.yyyy} ${d.HH}:${d.mm}`
   }

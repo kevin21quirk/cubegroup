@@ -63,6 +63,7 @@ export async function getInvoice(id: string) {
           },
         },
       },
+      items:    true,
       payments: true,
     },
   })

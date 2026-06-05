@@ -76,35 +76,59 @@ export default async function InvoicesPage() {
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      {invoices.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            <Receipt className="mx-auto h-12 w-12 mb-4 opacity-50" />
+            <p className="font-medium">No invoices yet</p>
+            <p className="text-sm mt-1">Invoices will appear here once payroll is processed</p>
+          </CardContent>
+        </Card>
+      ) : (
         <Card>
           <CardHeader>
-            <CardTitle>Client Invoices</CardTitle>
-            <CardDescription>Invoices sent to client companies</CardDescription>
+            <CardTitle>All Invoices</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-center py-8 text-muted-foreground">
-              <Receipt className="mx-auto h-10 w-10 mb-3 opacity-50" />
-              <p className="font-medium">No client invoices</p>
-              <p className="text-sm mt-1">Invoices will appear here once payroll is processed</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted">
+                  <tr>
+                    <th className="text-left px-3 py-2.5">Invoice #</th>
+                    <th className="text-left px-3 py-2.5">Company</th>
+                    <th className="text-left px-3 py-2.5">Type</th>
+                    <th className="text-left px-3 py-2.5">Issued</th>
+                    <th className="text-left px-3 py-2.5">Due</th>
+                    <th className="text-right px-3 py-2.5">Total</th>
+                    <th className="text-center px-3 py-2.5">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {invoices.map((inv) => (
+                    <tr key={inv.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="px-3 py-2.5">
+                        <Link href={`/dashboard/invoices/${inv.id}`} className="font-medium text-primary hover:underline">
+                          {inv.invoiceNumber}
+                        </Link>
+                      </td>
+                      <td className="px-3 py-2.5 text-muted-foreground">{inv.company?.name ?? '—'}</td>
+                      <td className="px-3 py-2.5 text-muted-foreground">{inv.invoiceType === 'CLIENT_INVOICE' ? 'Client' : 'Umbrella'}</td>
+                      <td className="px-3 py-2.5 text-muted-foreground">{formatDate(inv.issueDate)}</td>
+                      <td className="px-3 py-2.5 text-muted-foreground">{formatDate(inv.dueDate)}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums font-medium">{formatCurrency(inv.totalAmount)}</td>
+                      <td className="px-3 py-2.5 text-center">
+                        <Badge variant={inv.paymentStatus === 'PAID' ? 'default' : 'secondary'}>
+                          {inv.paymentStatus}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Umbrella Invoices</CardTitle>
-            <CardDescription>Invoices from umbrella companies</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8 text-muted-foreground">
-              <Receipt className="mx-auto h-10 w-10 mb-3 opacity-50" />
-              <p className="font-medium">No umbrella invoices</p>
-              <p className="text-sm mt-1">Umbrella invoices will be tracked here</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      )}
     </div>
   )
 }
