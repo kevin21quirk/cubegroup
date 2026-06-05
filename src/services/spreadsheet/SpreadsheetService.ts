@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs'
 import { NormalizedPayrollData } from '@/types/payroll'
 import path from 'path'
-import fs from 'fs/promises'
+import os from 'os'
 
 export interface SpreadsheetGenerationResult {
   success: boolean
@@ -227,10 +227,9 @@ export class SpreadsheetService {
         })
       }
 
-      // Save file
+      // Save file to system temp dir (/tmp on Vercel, OS temp on local dev)
       const filename = this.generateFilename(companyName, payrollWeek)
-      const outputPath = path.join(process.cwd(), 'temp', filename)
-      await fs.mkdir(path.dirname(outputPath), { recursive: true })
+      const outputPath = path.join(os.tmpdir(), filename)
       await workbook.xlsx.writeFile(outputPath)
 
       return { success: true, filePath: outputPath, filename }
