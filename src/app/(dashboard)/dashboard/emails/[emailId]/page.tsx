@@ -65,7 +65,7 @@ export default async function EmailDetailPage({ params }: { params: Promise<{ em
           <h1 className="text-2xl font-bold tracking-tight truncate">{email.subject}</h1>
           <p className="text-muted-foreground text-sm">From: {email.from}</p>
         </div>
-        {(email.processingStatus === 'FAILED' || email.processingStatus === 'RETRY_NEEDED') && (
+        {(email.processingStatus === 'FAILED' || email.processingStatus === 'RETRY_NEEDED' || email.processingStatus === 'EXTRACTING') && (
           <EmailRetryButton emailId={email.id} />
         )}
       </div>

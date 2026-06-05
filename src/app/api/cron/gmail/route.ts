@@ -80,6 +80,23 @@ export async function GET(request: NextRequest) {
 
     summary.messagesFound = messageIds.length
 
+    // ── 2b. Retry emails stuck in EXTRACTING for >5 minutes ─────────────────
+    const stuckCutoff = new Date(Date.now() - 5 * 60 * 1000)
+    const stuckEmails = await prisma.emailImport.findMany({
+      where: { processingStatus: 'EXTRACTING', updatedAt: { lt: stuckCutoff } },
+      take: 3,
+    })
+    for (const stuck of stuckEmails) {
+      console.log(`[cron/gmail] Retrying stuck email ${stuck.id}`)
+      await prisma.emailImport.update({
+        where: { id: stuck.id },
+        data: { processingStatus: 'PENDING', retryCount: { increment: 1 }, lastRetryAt: new Date() },
+      })
+      await processingService.processEmail(stuck.id).catch(err =>
+        console.error(`[cron/gmail] Retry failed for ${stuck.id}:`, err)
+      )
+    }
+
     if (messageIds.length === 0) {
       return NextResponse.json({
         success: true,
@@ -158,10 +175,12 @@ export async function GET(request: NextRequest) {
           },
         })
 
-        // ── 3h. Trigger async processing pipeline (non-blocking) ──────────
-        processingService.processEmail(emailImport.id).catch(err => {
+        // ── 3h. Process email (blocking within the 5-min function window) ──
+        try {
+          await processingService.processEmail(emailImport.id)
+        } catch (err) {
           console.error(`[cron/gmail] Processing failed for ${emailImport.id}:`, err)
-        })
+        }
 
         summary.messagesIngested++
       } catch (err) {

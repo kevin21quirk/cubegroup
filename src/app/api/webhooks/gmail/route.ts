@@ -71,18 +71,20 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Trigger async processing
+    // Process synchronously within the function lifetime
     const processingService = getEmailProcessingService()
-    
-    // Process in background (don't await)
-    processingService.processEmail(emailImport.id).catch(error => {
+    let processingResult: { success: boolean; error?: string } = { success: false }
+    try {
+      processingResult = await processingService.processEmail(emailImport.id)
+    } catch (error) {
       console.error('Email processing error:', error)
-    })
+    }
 
     return NextResponse.json({
       success: true,
       emailImportId: emailImport.id,
-      message: 'Email received and queued for processing'
+      processed: processingResult.success,
+      message: processingResult.success ? 'Email processed' : 'Email received; processing failed: ' + processingResult.error,
     })
   } catch (error) {
     console.error('Gmail webhook error:', error)
@@ -118,5 +120,5 @@ function detectDocumentType(filename: string): 'PDF' | 'DOCX' | 'XLSX' | 'CSV' |
   }
 }
 
-// Allow POST requests
 export const dynamic = 'force-dynamic'
+export const maxDuration = 300
