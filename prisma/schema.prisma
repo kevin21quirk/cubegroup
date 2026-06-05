@@ -410,6 +410,10 @@ model PayrollEntry {
   payslipStatus         String              @default("PENDING") // PENDING | APPROVED | SENT
   payslipSentAt         DateTime?
 
+  // Expense reimbursements (materials, travel, etc.)
+  expenseAmount         Float               @default(0)
+  expenseNotes          String?             // description of expense items
+
   department            String?
   projectSite           String?
   payrollWeek           String

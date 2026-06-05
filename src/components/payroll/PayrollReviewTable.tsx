@@ -4,8 +4,8 @@ import { useState, useTransition } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { CheckCircle, Send, Save, Loader2, AlertCircle, Mail, MailX, RefreshCw } from 'lucide-react'
-import { saveBulkEntryRates, approveAllEntries, sendPayslipsForSubmission } from '@/app/actions/payroll'
+import { CheckCircle, Send, Save, Loader2, AlertCircle, Mail, MailX, RefreshCw, Receipt } from 'lucide-react'
+import { saveBulkEntryRates, approveAllEntries, sendPayslipsForSubmission, sendPayslipForEntry } from '@/app/actions/payroll'
 
 interface Entry {
   id: string
@@ -26,6 +26,8 @@ interface Entry {
   umbrellaShareAmount: number
   brokerShareAmount: number
   netToWorker: number
+  expenseAmount: number
+  expenseNotes: string | null
   payslipStatus: string
   payslipSentAt: Date | null
   worker: { email: string | null } | null
@@ -36,6 +38,8 @@ interface Rates {
   feeAmount: number
   umbrellaSharePct: number
   brokerSharePct: number
+  expenseAmount: number
+  expenseNotes: string
 }
 
 interface PayrollReviewTableProps {
@@ -51,8 +55,9 @@ function calc(gross: number, r: Rates) {
   const fee      = parseFloat(r.feeAmount.toFixed(2))
   const umbrella = parseFloat(((fee * r.umbrellaSharePct) / 100).toFixed(2))
   const broker   = parseFloat(((fee * r.brokerSharePct)   / 100).toFixed(2))
-  const net      = parseFloat((gross - tax - fee).toFixed(2))
-  return { tax, fee, umbrella, broker, net }
+  const exp      = parseFloat((r.expenseAmount || 0).toFixed(2))
+  const net      = parseFloat((gross - tax - fee + exp).toFixed(2))
+  return { tax, fee, umbrella, broker, exp, net }
 }
 
 function NumInput({ value, onChange, min = 0, max = 100, step = 0.5, disabled = false, className = '', prefix = '', suffix = '%' }: {
@@ -81,10 +86,12 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
       feeAmount: e.feeAmount ?? 0,
       umbrellaSharePct: e.umbrellaSharePct ?? 50,
       brokerSharePct: e.brokerSharePct ?? 50,
+      expenseAmount: e.expenseAmount ?? 0,
+      expenseNotes: e.expenseNotes ?? '',
     }]))
   )
-  // Global defaults panel
-  const [global, setGlobal] = useState<Rates>({ taxRate: 20, feeAmount: 0, umbrellaSharePct: 50, brokerSharePct: 50 })
+  const [global, setGlobal] = useState<Rates>({ taxRate: 20, feeAmount: 0, umbrellaSharePct: 50, brokerSharePct: 50, expenseAmount: 0, expenseNotes: '' })
+  const [sendingEntry, setSendingEntry] = useState<string | null>(null)
   const [sendResults, setSendResults] = useState<{ name: string; status: string; error?: string }[] | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -92,27 +99,39 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
   function r(id: string): Rates { return rates[id] ?? global }
 
   function applyGlobal() {
-    setRates(prev => Object.fromEntries(Object.keys(prev).map(id => [id, { ...global }])))
+    setRates(prev => Object.fromEntries(Object.keys(prev).map(id => [id, { ...prev[id], taxRate: global.taxRate, feeAmount: global.feeAmount, umbrellaSharePct: global.umbrellaSharePct, brokerSharePct: global.brokerSharePct }])))
   }
 
-  function setRate(id: string, field: keyof Rates, val: number) {
+  function setRate(id: string, field: keyof Rates, val: number | string) {
     setRates(prev => ({ ...prev, [id]: { ...prev[id], [field]: val } }))
   }
 
   const totals = entries.reduce((acc, e) => {
     const g = gr(e); const c = calc(g, r(e.id))
-    return { gross: acc.gross + g, tax: acc.tax + c.tax, fee: acc.fee + c.fee, net: acc.net + c.net, umbrella: acc.umbrella + c.umbrella, broker: acc.broker + c.broker }
-  }, { gross: 0, tax: 0, fee: 0, net: 0, umbrella: 0, broker: 0 })
+    return { gross: acc.gross + g, tax: acc.tax + c.tax, fee: acc.fee + c.fee, exp: acc.exp + c.exp, net: acc.net + c.net, umbrella: acc.umbrella + c.umbrella, broker: acc.broker + c.broker }
+  }, { gross: 0, tax: 0, fee: 0, exp: 0, net: 0, umbrella: 0, broker: 0 })
 
 
   function handleSave() {
     startTransition(async () => {
       const updates = entries.map(e => {
         const er = r(e.id)
-        return { id: e.id, taxRate: er.taxRate, feeAmount: er.feeAmount, umbrellaSharePct: er.umbrellaSharePct, brokerSharePct: er.brokerSharePct }
+        return { id: e.id, taxRate: er.taxRate, feeAmount: er.feeAmount, umbrellaSharePct: er.umbrellaSharePct, brokerSharePct: er.brokerSharePct, expenseAmount: er.expenseAmount, expenseNotes: er.expenseNotes }
       })
       await saveBulkEntryRates(updates)
     })
+  }
+
+  async function handleSendOne(entryId: string) {
+    setSendingEntry(entryId)
+    try {
+      const result = await sendPayslipForEntry(entryId)
+      if (result.status === 'sent') {
+        setEntries(prev => prev.map(e => e.id === entryId ? { ...e, payslipStatus: 'SENT' } : e))
+      }
+    } finally {
+      setSendingEntry(null)
+    }
   }
 
   function handleApprove() {
@@ -197,8 +216,11 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
               <th className="text-right px-3 py-2.5 text-blue-700">Umb £</th>
               <th className="text-center px-3 py-2.5 text-purple-700">Broker %</th>
               <th className="text-right px-3 py-2.5 text-purple-700">Broker £</th>
+              <th className="text-right px-3 py-2.5 text-emerald-700">Expenses £</th>
+              <th className="text-xs px-2 py-2.5 text-emerald-700">Notes</th>
               <th className="text-right px-3 py-2.5 font-semibold">Net</th>
               <th className="text-center px-3 py-2.5">Status</th>
+              <th className="text-center px-3 py-2.5">Send</th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -237,11 +259,32 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
                       disabled={isPending} className="w-14" />
                   </td>
                   <td className="px-3 py-2.5 text-right tabular-nums text-purple-600">{fmt(c.broker)}</td>
+                  <td className="px-3 py-2.5 text-center">
+                    <NumInput value={er.expenseAmount} onChange={v => setRate(e.id, 'expenseAmount', v)} min={0} max={99999} step={1} prefix="£" suffix="" disabled={isPending} className="w-16" />
+                  </td>
+                  <td className="px-2 py-2.5">
+                    <Input
+                      className="h-8 text-xs w-28"
+                      placeholder="e.g. materials"
+                      value={er.expenseNotes}
+                      onChange={ev => setRate(e.id, 'expenseNotes', ev.target.value)}
+                      disabled={isPending}
+                    />
+                  </td>
                   <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-green-600">{fmt(c.net)}</td>
                   <td className="px-3 py-2.5 text-center">
                     <Badge variant={e.payslipStatus === 'SENT' ? 'default' : e.payslipStatus === 'APPROVED' ? 'outline' : 'secondary'} className="text-xs">
                       {e.payslipStatus}
                     </Badge>
+                  </td>
+                  <td className="px-3 py-2.5 text-center">
+                    {email ? (
+                      <Button size="sm" variant="ghost" className="h-7 px-2" disabled={isPending || sendingEntry === e.id} onClick={() => handleSendOne(e.id)}>
+                        {sendingEntry === e.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                      </Button>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
                   </td>
                 </tr>
               )
@@ -258,7 +301,10 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
               <td className="px-3 py-2.5 text-right tabular-nums text-blue-600">{fmt(totals.umbrella)}</td>
               <td />
               <td className="px-3 py-2.5 text-right tabular-nums text-purple-600">{fmt(totals.broker)}</td>
+              <td className="px-3 py-2.5 text-right tabular-nums text-emerald-700">+{fmt(totals.exp)}</td>
+              <td />
               <td className="px-3 py-2.5 text-right tabular-nums text-green-600">{fmt(totals.net)}</td>
+              <td />
               <td />
             </tr>
           </tfoot>

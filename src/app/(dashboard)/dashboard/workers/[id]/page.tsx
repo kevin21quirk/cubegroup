@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, User, Building2, CreditCard, Phone, Mail, MapPin, FileText, Briefcase } from 'lucide-react'
+import { ArrowLeft, User, Building2, CreditCard, Phone, Mail, MapPin, FileText, Briefcase, Pencil } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getWorker, deleteWorker } from '@/app/actions/workers'
@@ -30,6 +30,11 @@ export default async function WorkerDetailPage({ params }: { params: Promise<{ i
             {w.cisStatus && <Badge variant="outline">CIS: {w.cisStatus}</Badge>}
           </div>
         </div>
+        <Link href={`/dashboard/workers/${id}/edit`}>
+          <Button variant="outline" size="sm">
+            <Pencil className="mr-2 h-4 w-4" />Edit
+          </Button>
+        </Link>
         <DeleteButton
           action={deleteWorker.bind(null, id)}
           label="Worker"
