@@ -232,44 +232,50 @@ async function resolveWorkerEmail(entry: { workerId: string | null; worker: { em
   return null
 }
 
-export async function sendPayslipForEntry(entryId: string) {
-  const e = await prisma.payrollEntry.findUnique({
-    where: { id: entryId },
-    include: { worker: true, payrollSubmission: { include: { company: true } } },
-  })
-  if (!e) throw new Error('Entry not found')
+export async function sendPayslipForEntry(entryId: string): Promise<{ status: 'sent' | 'no_email' | 'error'; error?: string; email?: string }> {
+  try {
+    const e = await prisma.payrollEntry.findUnique({
+      where: { id: entryId },
+      include: { worker: true, payrollSubmission: { include: { company: true } } },
+    })
+    if (!e) return { status: 'error', error: 'Entry not found' }
 
-  const workerEmail = await resolveWorkerEmail(e, e.payrollSubmission.companyId)
-  if (!workerEmail) return { status: 'no_email' as const }
+    const workerEmail = await resolveWorkerEmail(e, e.payrollSubmission.companyId)
+    if (!workerEmail) return { status: 'no_email', error: `No email on file for ${e.firstName} ${e.lastName} – add one on the worker's Edit page` }
 
-  const gross = e.grossPay || e.totalGrossPay
-  const taxRate = e.taxRate ?? 20
-  const taxAmount = e.taxAmount || parseFloat(((gross * taxRate) / 100).toFixed(2))
-  const netToWorker = e.netToWorker || parseFloat((gross - taxAmount).toFixed(2))
+    const gross = e.grossPay || e.totalGrossPay
+    const taxRate = e.taxRate ?? 20
+    const taxAmount = e.taxAmount || parseFloat(((gross * taxRate) / 100).toFixed(2))
+    const netToWorker = e.netToWorker || parseFloat((gross - taxAmount).toFixed(2))
 
-  const svc = getPayslipService()
-  await svc.sendPayslip({
-    id: e.id,
-    workerName: e.workerName,
-    firstName: e.firstName,
-    lastName: e.lastName,
-    payrollWeek: e.payrollWeek,
-    grossPay: gross,
-    taxRate,
-    taxAmount,
-    feeAmount: e.feeAmount ?? 0,
-    netToWorker,
-    hoursWorked: e.hoursWorked,
-    hourlyRate: e.hourlyRate,
-    companyName: e.payrollSubmission.company.name,
-    workerEmail,
-  })
+    const svc = getPayslipService()
+    await svc.sendPayslip({
+      id: e.id,
+      workerName: e.workerName,
+      firstName: e.firstName,
+      lastName: e.lastName,
+      payrollWeek: e.payrollWeek,
+      grossPay: gross,
+      taxRate,
+      taxAmount,
+      feeAmount: e.feeAmount ?? 0,
+      netToWorker,
+      hoursWorked: e.hoursWorked,
+      hourlyRate: e.hourlyRate,
+      companyName: e.payrollSubmission.company.name,
+      workerEmail,
+    })
 
-  await prisma.payrollEntry.update({
-    where: { id: entryId },
-    data: { payslipStatus: 'SENT', payslipSentAt: new Date() },
-  })
+    await prisma.payrollEntry.update({
+      where: { id: entryId },
+      data: { payslipStatus: 'SENT', payslipSentAt: new Date() },
+    })
 
-  revalidatePath(`/dashboard/payroll/${e.payrollSubmissionId}`)
-  return { status: 'sent' as const }
+    revalidatePath(`/dashboard/payroll/${e.payrollSubmissionId}`)
+    return { status: 'sent', email: workerEmail }
+  } catch (err: any) {
+    const msg = err?.message ?? String(err)
+    console.error('[sendPayslipForEntry]', msg)
+    return { status: 'error', error: msg }
+  }
 }

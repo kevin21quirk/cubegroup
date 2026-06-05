@@ -92,6 +92,7 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
   )
   const [global, setGlobal] = useState<Rates>({ taxRate: 20, feeAmount: 0, umbrellaSharePct: 50, brokerSharePct: 50, expenseAmount: 0, expenseNotes: '' })
   const [sendingEntry, setSendingEntry] = useState<string | null>(null)
+  const [sendMessage, setSendMessage] = useState<{ entryId: string; status: 'sent' | 'no_email' | 'error'; text: string } | null>(null)
   const [sendResults, setSendResults] = useState<{ name: string; status: string; error?: string }[] | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -124,11 +125,19 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
 
   async function handleSendOne(entryId: string) {
     setSendingEntry(entryId)
+    setSendMessage(null)
     try {
       const result = await sendPayslipForEntry(entryId)
       if (result.status === 'sent') {
         setEntries(prev => prev.map(e => e.id === entryId ? { ...e, payslipStatus: 'SENT' } : e))
+        setSendMessage({ entryId, status: 'sent', text: `Sent to ${result.email}` })
+      } else if (result.status === 'no_email') {
+        setSendMessage({ entryId, status: 'no_email', text: result.error ?? 'No email on file' })
+      } else {
+        setSendMessage({ entryId, status: 'error', text: result.error ?? 'Send failed' })
       }
+    } catch (err: any) {
+      setSendMessage({ entryId, status: 'error', text: err?.message ?? String(err) })
     } finally {
       setSendingEntry(null)
     }
@@ -234,11 +243,19 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
                   <td className="px-3 py-2.5">
                     <div className="font-medium">{name}</div>
                     {email ? (
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground"><Mail className="h-3 w-3"/>{email}</div>
-                        <Button size="sm" variant="outline" className="h-5 px-1.5 text-xs" disabled={isPending || sendingEntry === e.id} onClick={() => handleSendOne(e.id)}>
-                          {sendingEntry === e.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
-                        </Button>
+                      <div className="flex flex-col gap-0.5 mt-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground"><Mail className="h-3 w-3"/>{email}</div>
+                          <Button size="sm" variant="outline" className="h-5 px-1.5 text-xs" disabled={isPending || sendingEntry === e.id} onClick={() => handleSendOne(e.id)}>
+                            {sendingEntry === e.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                          </Button>
+                        </div>
+                        {sendMessage?.entryId === e.id && (
+                          <div className={`text-xs ${
+                            sendMessage.status === 'sent' ? 'text-green-600' :
+                            sendMessage.status === 'no_email' ? 'text-amber-600' : 'text-red-600'
+                          }`}>{sendMessage.text}</div>
+                        )}
                       </div>
                     ) : (
                       <div className="flex items-center gap-1 text-xs text-amber-600"><MailX className="h-3 w-3"/>No email</div>
