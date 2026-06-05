@@ -5,7 +5,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { CheckCircle, Send, Save, Loader2, AlertCircle, Mail, MailX, RefreshCw, Receipt } from 'lucide-react'
-import { saveBulkEntryRates, approveAllEntries, sendPayslipsForSubmission, sendPayslipForEntry } from '@/app/actions/payroll'
+import { saveBulkEntryRates, approveAllEntries, sendPayslipsForSubmission, sendPayslipForEntry, generateInvoiceForSubmission } from '@/app/actions/payroll'
+import { useRouter } from 'next/navigation'
 
 interface Entry {
   id: string
@@ -94,7 +95,9 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
   const [sendingEntry, setSendingEntry] = useState<string | null>(null)
   const [sendMessage, setSendMessage] = useState<{ entryId: string; status: 'sent' | 'no_email' | 'error'; text: string } | null>(null)
   const [sendResults, setSendResults] = useState<{ name: string; status: string; error?: string }[] | null>(null)
+  const [invoicePending, setInvoicePending] = useState(false)
   const [isPending, startTransition] = useTransition()
+  const router = useRouter()
 
   function gr(e: Entry) { return e.grossPay || e.totalGrossPay }
   function r(id: string): Rates { return rates[id] ?? global }
@@ -164,6 +167,18 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
 
   const allApproved = entries.every(e => e.payslipStatus !== 'PENDING')
   const anySent = entries.some(e => e.payslipStatus === 'SENT')
+
+  async function handleGenerateInvoice() {
+    setInvoicePending(true)
+    try {
+      const { invoiceId } = await generateInvoiceForSubmission(submissionId)
+      router.push(`/dashboard/invoices/${invoiceId}`)
+    } catch (err: any) {
+      console.error(err)
+    } finally {
+      setInvoicePending(false)
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -335,6 +350,10 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
         <Button onClick={handleSendAll} disabled={isPending} size="sm">
           {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
           Send All Payslips
+        </Button>
+        <Button onClick={handleGenerateInvoice} disabled={invoicePending || isPending} variant="outline" size="sm">
+          {invoicePending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Receipt className="mr-2 h-4 w-4" />}
+          Generate Invoice
         </Button>
         {anySent && <span className="text-sm text-green-600 font-medium">✓ Payslips sent</span>}
       </div>

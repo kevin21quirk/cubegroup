@@ -33,33 +33,41 @@ export class ValidationService {
       }
 
       if (!entry.companyName || entry.companyName.trim() === '') {
-        errors.push({
+        warnings.push({
           type: 'MISSING_FIELD',
-          message: 'Company name is required',
+          message: 'Company name not found in document (resolved from email context)',
           fieldName: 'companyName',
           rowIndex: index,
-          severity: 'ERROR'
+          severity: 'WARNING'
         })
       }
 
       if (!entry.payrollWeek || entry.payrollWeek.trim() === '') {
-        errors.push({
+        warnings.push({
           type: 'MISSING_FIELD',
-          message: 'Payroll week is required',
+          message: 'Payroll week not found in document',
           fieldName: 'payrollWeek',
           rowIndex: index,
-          severity: 'ERROR'
+          severity: 'WARNING'
         })
       }
 
-      // Check for missing rates
-      if (entry.hourlyRate === 0 || entry.hourlyRate < 0) {
+      // Hourly rate of 0 is valid for CIS flat-rate payments
+      if (entry.hourlyRate < 0) {
         errors.push({
           type: 'INVALID_RATE',
-          message: 'Hourly rate must be greater than 0',
+          message: 'Hourly rate cannot be negative',
           fieldName: 'hourlyRate',
           rowIndex: index,
           severity: 'ERROR'
+        })
+      } else if (entry.hourlyRate === 0 && entry.grossPay === 0) {
+        warnings.push({
+          type: 'MISSING_RATE',
+          message: 'Both hourly rate and gross pay are zero — entry may be empty',
+          fieldName: 'hourlyRate',
+          rowIndex: index,
+          severity: 'WARNING'
         })
       }
 

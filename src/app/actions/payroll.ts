@@ -50,6 +50,79 @@ export async function deletePayrollSubmission(id: string) {
   revalidatePath('/dashboard/payroll')
 }
 
+export async function generateInvoiceForSubmission(submissionId: string): Promise<{ invoiceId: string }> {
+  const submission = await prisma.payrollSubmission.findUnique({
+    where: { id: submissionId },
+    include: {
+      company: true,
+      payrollEntries: true,
+    },
+  })
+  if (!submission) throw new Error('Submission not found')
+
+  // Check if an invoice already exists for this submission
+  const existing = await prisma.invoice.findFirst({
+    where: { payrollSubmissionId: submissionId, invoiceType: 'CLIENT_INVOICE' },
+    select: { id: true },
+  })
+  if (existing) return { invoiceId: existing.id }
+
+  const totalGross = submission.payrollEntries.reduce(
+    (sum, e) => sum + (e.grossPay || e.totalGrossPay || 0), 0
+  )
+  const totalFees = submission.payrollEntries.reduce((sum, e) => sum + (e.feeAmount || 0), 0)
+  const subtotal = parseFloat((totalGross + totalFees).toFixed(2))
+
+  const invoiceNumber = `INV-${new Date().getFullYear()}-${submission.id.slice(-8).toUpperCase()}`
+  const paymentDays = submission.company.paymentTerms ?? 30
+
+  const lineItems = submission.payrollEntries.map(e => {
+    const unitPrice = parseFloat((e.grossPay || e.totalGrossPay || 0).toFixed(2))
+    return {
+      description: `Payroll – ${[e.firstName, e.lastName].filter(Boolean).join(' ') || e.workerName} (${submission.payrollWeek})`,
+      quantity: 1,
+      unitPrice,
+      amount: unitPrice,
+      vatRate: 0,
+    }
+  })
+
+  if (totalFees > 0) {
+    const feeUnit = parseFloat(totalFees.toFixed(2))
+    lineItems.push({
+      description: `Management fee (${submission.payrollWeek})`,
+      quantity: 1,
+      unitPrice: feeUnit,
+      amount: feeUnit,
+      vatRate: 0,
+    })
+  }
+
+  const invoice = await prisma.invoice.create({
+    data: {
+      companyId:           submission.companyId,
+      payrollSubmissionId: submissionId,
+      invoiceNumber,
+      invoiceType:         'CLIENT_INVOICE',
+      billingName:         submission.company.name,
+      billingAddress:      submission.company.billingAddress  ?? undefined,
+      billingCity:         submission.company.billingCity     ?? undefined,
+      billingPostcode:     submission.company.billingPostcode ?? undefined,
+      subtotal,
+      vatAmount:           0,
+      totalAmount:         subtotal,
+      paymentStatus:       'UNPAID',
+      issueDate:           new Date(),
+      dueDate:             new Date(Date.now() + paymentDays * 86_400_000),
+      items:               { create: lineItems },
+    },
+  })
+
+  revalidatePath(`/dashboard/payroll/${submissionId}`)
+  revalidatePath('/dashboard/invoices')
+  return { invoiceId: invoice.id }
+}
+
 export async function getPayrollSubmission(id: string) {
   const submission = await prisma.payrollSubmission.findUnique({
     where: { id },
