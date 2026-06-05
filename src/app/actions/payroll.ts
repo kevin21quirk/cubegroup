@@ -166,7 +166,7 @@ export async function sendPayslipsForSubmission(submissionId: string) {
   const results: { name: string; status: 'sent' | 'no_email' | 'error'; error?: string }[] = []
 
   for (const e of submission.payrollEntries) {
-    const workerEmail = e.worker?.email ?? null
+    const workerEmail = await resolveWorkerEmail(e, submission.companyId)
     const gross = e.grossPay || e.totalGrossPay
     const taxRate = e.taxRate ?? 20
     const taxAmount = e.taxAmount || parseFloat(((gross * taxRate) / 100).toFixed(2))
@@ -213,6 +213,25 @@ export async function sendPayslipsForSubmission(submissionId: string) {
   return results
 }
 
+async function resolveWorkerEmail(entry: { workerId: string | null; worker: { email: string | null } | null; firstName: string | null; lastName: string | null }, companyId: string): Promise<string | null> {
+  if (entry.worker?.email) return entry.worker.email
+  // Fallback: match by name within the company (CSV imports have no workerId)
+  const match = await prisma.worker.findFirst({
+    where: {
+      companyId,
+      firstName: { equals: entry.firstName ?? '', mode: 'insensitive' },
+      lastName:  { equals: entry.lastName  ?? '', mode: 'insensitive' },
+    },
+    select: { id: true, email: true },
+  })
+  if (match) {
+    // Persist the link so future direct fetches work
+    await prisma.payrollEntry.update({ where: { id: (entry as any).id }, data: { workerId: match.id } }).catch(() => {})
+    return match.email
+  }
+  return null
+}
+
 export async function sendPayslipForEntry(entryId: string) {
   const e = await prisma.payrollEntry.findUnique({
     where: { id: entryId },
@@ -220,7 +239,7 @@ export async function sendPayslipForEntry(entryId: string) {
   })
   if (!e) throw new Error('Entry not found')
 
-  const workerEmail = e.worker?.email ?? null
+  const workerEmail = await resolveWorkerEmail(e, e.payrollSubmission.companyId)
   if (!workerEmail) return { status: 'no_email' as const }
 
   const gross = e.grossPay || e.totalGrossPay
