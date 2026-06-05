@@ -326,7 +326,7 @@ model Worker {
 model PayrollSubmission {
   id                String          @id @default(cuid())
   companyId         String
-  company           Company         @relation(fields: [companyId], references: [id])
+  company           Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   emailImportId     String?         @unique
   emailImport       EmailImport?    @relation(fields: [emailImportId], references: [id])
   payrollWeek       String
@@ -496,7 +496,7 @@ model CisSubcontractor {
 model CisTransaction {
   id                    String              @id @default(cuid())
   payrollSubmissionId   String?
-  payrollSubmission     PayrollSubmission?  @relation(fields: [payrollSubmissionId], references: [id])
+  payrollSubmission     PayrollSubmission?  @relation(fields: [payrollSubmissionId], references: [id], onDelete: SetNull)
   workerId              String?
   worker                Worker?             @relation(fields: [workerId], references: [id])
   cisSubcontractorId    String?
@@ -528,9 +528,9 @@ model CisTransaction {
 model AccountingExport {
   id                    String              @id @default(cuid())
   companyId             String
-  company               Company             @relation(fields: [companyId], references: [id])
+  company               Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
   payrollSubmissionId   String?
-  payrollSubmission     PayrollSubmission?  @relation(fields: [payrollSubmissionId], references: [id])
+  payrollSubmission     PayrollSubmission?  @relation(fields: [payrollSubmissionId], references: [id], onDelete: SetNull)
 
   accountingSystem      String              // Xero | QuickBooks
   exportType            String              // Invoice | Bill | Contact | JournalEntry
@@ -554,11 +554,11 @@ model Invoice {
   invoiceNumber         String              @unique
   invoiceType           InvoiceType
   companyId             String?
-  company               Company?            @relation(fields: [companyId], references: [id])
+  company               Company?            @relation(fields: [companyId], references: [id], onDelete: SetNull)
   umbrellaCompanyId     String?
   umbrellaCompany       UmbrellaCompany?    @relation(fields: [umbrellaCompanyId], references: [id])
   payrollSubmissionId   String?
-  payrollSubmission     PayrollSubmission?  @relation(fields: [payrollSubmissionId], references: [id])
+  payrollSubmission     PayrollSubmission?  @relation(fields: [payrollSubmissionId], references: [id], onDelete: SetNull)
   
   issueDate             DateTime            @default(now())
   dueDate               DateTime
@@ -659,9 +659,9 @@ model Document {
   storagePath           String
   
   companyId             String?
-  company               Company?            @relation(fields: [companyId], references: [id])
+  company               Company?            @relation(fields: [companyId], references: [id], onDelete: SetNull)
   payrollSubmissionId   String?
-  payrollSubmission     PayrollSubmission?  @relation(fields: [payrollSubmissionId], references: [id])
+  payrollSubmission     PayrollSubmission?  @relation(fields: [payrollSubmissionId], references: [id], onDelete: SetNull)
   invoiceId             String?
   invoice               Invoice?            @relation(fields: [invoiceId], references: [id])
   
@@ -722,7 +722,7 @@ model Task {
   assignedToId          String?
   assignedTo            User?               @relation(fields: [assignedToId], references: [id])
   payrollSubmissionId   String?
-  payrollSubmission     PayrollSubmission?  @relation(fields: [payrollSubmissionId], references: [id])
+  payrollSubmission     PayrollSubmission?  @relation(fields: [payrollSubmissionId], references: [id], onDelete: SetNull)
   completedAt           DateTime?
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
@@ -736,9 +736,9 @@ model Note {
   id                    String              @id @default(cuid())
   content               String
   companyId             String?
-  company               Company?            @relation(fields: [companyId], references: [id])
+  company               Company?            @relation(fields: [companyId], references: [id], onDelete: SetNull)
   payrollSubmissionId   String?
-  payrollSubmission     PayrollSubmission?  @relation(fields: [payrollSubmissionId], references: [id])
+  payrollSubmission     PayrollSubmission?  @relation(fields: [payrollSubmissionId], references: [id], onDelete: SetNull)
   createdById           String
   createdBy             User                @relation(fields: [createdById], references: [id])
   createdAt             DateTime            @default(now())
@@ -757,9 +757,9 @@ model Activity {
   entityId              String?
   metadata              Json?
   companyId             String?
-  company               Company?            @relation(fields: [companyId], references: [id])
+  company               Company?            @relation(fields: [companyId], references: [id], onDelete: SetNull)
   payrollSubmissionId   String?
-  payrollSubmission     PayrollSubmission?  @relation(fields: [payrollSubmissionId], references: [id])
+  payrollSubmission     PayrollSubmission?  @relation(fields: [payrollSubmissionId], references: [id], onDelete: SetNull)
   userId                String
   user                  User                @relation(fields: [userId], references: [id])
   createdAt             DateTime            @default(now())

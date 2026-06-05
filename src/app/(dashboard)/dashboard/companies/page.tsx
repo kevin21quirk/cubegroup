@@ -3,9 +3,10 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Building2, Users, FileText, Mail, Phone, MapPin, Edit } from 'lucide-react'
 import Link from 'next/link'
-import { getCompanies } from '@/app/actions/companies'
+import { getCompanies, deleteCompany } from '@/app/actions/companies'
 import { formatDate } from '@/lib/utils'
 import ImportDialog from '@/components/import/ImportDialog'
+import { DeleteButton } from '@/components/ui/delete-button'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -70,11 +71,19 @@ export default async function CompaniesPage() {
                       </Badge>
                     </div>
                   </Link>
-                  <Link href={`/dashboard/companies/${company.id}/edit`}>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                  </Link>
+                  <div className="flex items-center gap-1">
+                    <Link href={`/dashboard/companies/${company.id}/edit`}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                    <DeleteButton
+                      action={deleteCompany.bind(null, company.id)}
+                      label={company.name}
+                      description={`This will permanently delete ${company.name} and all associated workers, payroll submissions, and data. This cannot be undone.`}
+                      redirectTo="/dashboard/companies"
+                    />
+                  </div>
                 </div>
               </CardHeader>
                 <CardContent className="space-y-3">
