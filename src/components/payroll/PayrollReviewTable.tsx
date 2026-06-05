@@ -220,7 +220,6 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
               <th className="text-xs px-2 py-2.5 text-emerald-700">Notes</th>
               <th className="text-right px-3 py-2.5 font-semibold">Net</th>
               <th className="text-center px-3 py-2.5">Status</th>
-              <th className="text-center px-3 py-2.5">Send</th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -234,10 +233,16 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
                 <tr key={e.id} className="hover:bg-muted/30 transition-colors">
                   <td className="px-3 py-2.5">
                     <div className="font-medium">{name}</div>
-                    {email
-                      ? <div className="flex items-center gap-1 text-xs text-muted-foreground"><Mail className="h-3 w-3"/>{email}</div>
-                      : <div className="flex items-center gap-1 text-xs text-amber-600"><MailX className="h-3 w-3"/>No email</div>
-                    }
+                    {email ? (
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground"><Mail className="h-3 w-3"/>{email}</div>
+                        <Button size="sm" variant="outline" className="h-5 px-1.5 text-xs" disabled={isPending || sendingEntry === e.id} onClick={() => handleSendOne(e.id)}>
+                          {sendingEntry === e.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 text-xs text-amber-600"><MailX className="h-3 w-3"/>No email</div>
+                    )}
                   </td>
                   <td className="px-3 py-2.5 text-right tabular-nums">{fmt(g)}</td>
                   <td className="px-3 py-2.5 text-center">
@@ -277,15 +282,6 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
                       {e.payslipStatus}
                     </Badge>
                   </td>
-                  <td className="px-3 py-2.5 text-center">
-                    {email ? (
-                      <Button size="sm" variant="ghost" className="h-7 px-2" disabled={isPending || sendingEntry === e.id} onClick={() => handleSendOne(e.id)}>
-                        {sendingEntry === e.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
-                      </Button>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
-                  </td>
                 </tr>
               )
             })}
@@ -304,7 +300,6 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
               <td className="px-3 py-2.5 text-right tabular-nums text-emerald-700">+{fmt(totals.exp)}</td>
               <td />
               <td className="px-3 py-2.5 text-right tabular-nums text-green-600">{fmt(totals.net)}</td>
-              <td />
               <td />
             </tr>
           </tfoot>

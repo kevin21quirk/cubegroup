@@ -51,19 +51,48 @@ export async function deletePayrollSubmission(id: string) {
 }
 
 export async function getPayrollSubmission(id: string) {
-  return await prisma.payrollSubmission.findUnique({
+  const submission = await prisma.payrollSubmission.findUnique({
     where: { id },
     include: {
       company: true,
       payrollEntries: {
-        include: {
-          worker: true,
-        },
+        include: { worker: true },
         orderBy: { createdAt: 'asc' },
       },
       invoices: true,
     },
   })
+  if (!submission) return null
+
+  // For entries imported from CSV (workerId = null), match to a worker by first+last name
+  const unlinked = submission.payrollEntries.filter(e => !e.worker)
+  if (unlinked.length > 0) {
+    const companyWorkers = await prisma.worker.findMany({
+      where: { companyId: submission.companyId },
+      select: { id: true, firstName: true, lastName: true, email: true },
+    })
+
+    const patched = submission.payrollEntries.map(entry => {
+      if (entry.worker) return entry
+      const match = companyWorkers.find(w =>
+        (w.firstName ?? '').toLowerCase() === (entry.firstName ?? '').toLowerCase() &&
+        (w.lastName  ?? '').toLowerCase() === (entry.lastName  ?? '').toLowerCase()
+      )
+      return match ? { ...entry, workerId: match.id, worker: match as any } : entry
+    })
+
+    // Persist matched workerIds in background so future loads are faster
+    const toLink = patched.filter(e => e.worker && !submission.payrollEntries.find(orig => orig.id === e.id)?.worker)
+    if (toLink.length > 0) {
+      prisma.$transaction(toLink.map(e =>
+        prisma.payrollEntry.update({ where: { id: e.id }, data: { workerId: e.workerId } })
+      )).catch(() => {})
+    }
+
+    return { ...submission, payrollEntries: patched }
+  }
+
+  return submission
 }
 
 function calcEntry(gross: number, taxRate: number, feeAmount: number, umbrellaSharePct: number, brokerSharePct: number) {
