@@ -302,13 +302,31 @@ Return ONLY a valid JSON object matching the schema in the system prompt. All nu
   }
 
   private normalizePayrollEntries(entries: any[]): NormalizedPayrollData[] {
-    return entries.map(e => ({
+    return entries.map(e => {
+      const rawFirst = String(e.firstName || '').trim()
+      const rawLast  = String(e.lastName  || '').trim()
+      const workerName = String(e.workerName || e.name || `${rawFirst} ${rawLast}`.trim() || '').trim()
+
+      // If AI returned a full name but no split first/last, derive them from workerName
+      let firstName = rawFirst
+      let lastName  = rawLast
+      if ((!firstName || !lastName) && workerName) {
+        const parts = workerName.split(/\s+/)
+        if (parts.length >= 2) {
+          firstName = firstName || parts[0]
+          lastName  = lastName  || parts.slice(1).join(' ')
+        } else if (parts.length === 1 && !firstName) {
+          firstName = parts[0]
+        }
+      }
+
+      return ({
       companyName:   String(e.companyName   || e.company   || ''),
       payrollWeek:   String(e.payrollWeek   || e.week      || e.period || ''),
-      workerName:    String(e.workerName    || e.name      || `${e.firstName || ''} ${e.lastName || ''}`.trim() || ''),
+      workerName,
       niNumber:      String(e.niNumber      || e.employeeId|| ''),
-      firstName:     String(e.firstName     || ''),
-      lastName:      String(e.lastName      || ''),
+      firstName,
+      lastName,
       isNewStarter:  Boolean(e.isNewStarter),
       isLeaver:      Boolean(e.isLeaver),
       startDate:     e.startDate            || undefined,
@@ -328,7 +346,8 @@ Return ONLY a valid JSON object matching the schema in the system prompt. All nu
       site:          String(e.site          || e.location  || e.project || ''),
       notes:         String(e.notes         || e.remarks   || ''),
       jobTitle:      String(e.jobTitle      || ''),
-    }))
+    })
+    })
   }
 }
 

@@ -97,7 +97,11 @@ export class EmailProcessingService {
         || extraction.workerData[0]?.tradingName
         || 'Unknown Company'
       const payrollWeek = extraction.payrollEntries[0]?.payrollWeek || new Date().toISOString().split('T')[0]
-      const company = await this.resolveCompany(companyName, emailImport.from)
+      const workerHints = [
+        ...extraction.payrollEntries.map(e => ({ firstName: e.firstName, lastName: e.lastName, workerName: e.workerName })),
+        ...extraction.workerData.map(w => ({ firstName: w.firstName, lastName: w.lastName })),
+      ]
+      const company = await this.resolveCompany(companyName, emailImport.from, workerHints)
 
       // ── COMPANY_INFO doc → update company details and finish ───────────────
       if (isCompanyDoc) {
@@ -360,34 +364,66 @@ export class EmailProcessingService {
     }
   }
 
-  // ── Find or create company matched on name / sender domain ─────────────────
-  private async resolveCompany(companyName: string, fromEmail?: string) {
-    // 1. Try exact / fuzzy name match
-    let company = await prisma.company.findFirst({
-      where: { name: { contains: companyName, mode: 'insensitive' } },
-    })
+  // ── Find or create company matched on name / sender domain / existing workers ─
+  private async resolveCompany(
+    companyName: string,
+    fromEmail?: string,
+    workerHints?: Array<{ firstName?: string; lastName?: string; workerName?: string }>
+  ) {
+    // 1. Try exact / fuzzy name match (skip if name is the generic fallback)
+    const isGenericName = !companyName || /unknown company/i.test(companyName)
+    if (!isGenericName) {
+      const company = await prisma.company.findFirst({
+        where: { name: { contains: companyName, mode: 'insensitive' } },
+      })
+      if (company) return company
+    }
 
     // 2. Try email domain match
-    if (!company && fromEmail) {
+    if (fromEmail) {
       const domain = fromEmail.split('@')[1]?.toLowerCase()
       if (domain) {
-        company = await prisma.company.findFirst({
+        const company = await prisma.company.findFirst({
           where: { emailDomains: { has: domain } },
         })
+        if (company) return company
       }
     }
 
-    if (!company) {
-      const creator = await prisma.user.findFirst({
-        where: { role: 'SUPER_ADMIN' },
-      }) || await prisma.user.findFirst()
-      if (!creator) throw new Error('No users found in database — add at least one user before email processing can create companies')
-      company = await prisma.company.create({
-        data: { name: companyName, createdById: creator.id },
-      })
+    // 3. Infer company from workers already in the database (handles ALL-CAPS names etc.)
+    if (workerHints?.length) {
+      const companyVotes: Record<string, number> = {}
+      for (const hint of workerHints) {
+        let fName = hint.firstName?.trim() || ''
+        let lName = hint.lastName?.trim() || ''
+        if ((!fName || !lName) && hint.workerName) {
+          const parts = hint.workerName.trim().split(/\s+/)
+          if (parts.length >= 2) { fName = fName || parts[0]; lName = lName || parts.slice(1).join(' ') }
+        }
+        if (!fName || !lName) continue
+        const worker = await prisma.worker.findFirst({
+          where: {
+            firstName: { equals: fName, mode: 'insensitive' },
+            lastName:  { equals: lName, mode: 'insensitive' },
+          },
+          select: { companyId: true },
+        })
+        if (worker) companyVotes[worker.companyId] = (companyVotes[worker.companyId] || 0) + 1
+      }
+      const top = Object.entries(companyVotes).sort(([, a], [, b]) => b - a)[0]
+      if (top) {
+        const company = await prisma.company.findUnique({ where: { id: top[0] } })
+        if (company) return company
+      }
     }
 
-    return company
+    // 4. Create a new company only if we have a real name
+    const nameToCreate = !isGenericName ? companyName
+      : fromEmail ? fromEmail.split('@')[0].replace(/[._+-]/g, ' ').trim() : 'Unknown Company'
+    const creator = await prisma.user.findFirst({ where: { role: 'SUPER_ADMIN' } })
+      || await prisma.user.findFirst()
+    if (!creator) throw new Error('No users found in database — add at least one user before email processing can create companies')
+    return prisma.company.create({ data: { name: nameToCreate, createdById: creator.id } })
   }
 
   // ── Create PayrollSubmission + PayrollEntries ─────────────────────────────
