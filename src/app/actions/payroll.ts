@@ -173,6 +173,8 @@ export async function sendPayslipsForSubmission(submissionId: string) {
     const netToWorker = e.netToWorker || parseFloat((gross - taxAmount).toFixed(2))
 
     const feeAmount = e.feeAmount ?? 0
+    const co = submission.company
+    const coAddrParts = [co.billingAddress, co.billingCity, co.billingPostcode].filter(Boolean)
 
     const entry = {
       id: e.id,
@@ -180,6 +182,7 @@ export async function sendPayslipsForSubmission(submissionId: string) {
       firstName: e.firstName,
       lastName: e.lastName,
       payrollWeek: e.payrollWeek,
+      payDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
       grossPay: gross,
       taxRate,
       taxAmount,
@@ -187,7 +190,16 @@ export async function sendPayslipsForSubmission(submissionId: string) {
       netToWorker,
       hoursWorked: e.hoursWorked,
       hourlyRate: e.hourlyRate,
-      companyName: submission.company.name,
+      companyName: co.name,
+      companyAddress: coAddrParts.join('  ') || null,
+      companyRef: co.agencyRef ?? null,
+      companyUTR: co.uniqueTaxRef ?? null,
+      workerAddress1: e.worker?.addressLine1 ?? null,
+      workerAddress2: e.worker?.addressLine2 ?? null,
+      workerTown: e.worker?.town ?? null,
+      workerPostCode: e.worker?.postCode ?? null,
+      workerNI: e.worker?.nationalInsurance ?? null,
+      workerUTR: e.worker?.utrNumber ?? null,
       workerEmail,
     }
 
@@ -248,6 +260,10 @@ export async function sendPayslipForEntry(entryId: string): Promise<{ status: 's
     const taxAmount = e.taxAmount || parseFloat(((gross * taxRate) / 100).toFixed(2))
     const netToWorker = e.netToWorker || parseFloat((gross - taxAmount).toFixed(2))
 
+    const co = e.payrollSubmission.company
+    const coAddrParts = [co.billingAddress, co.billingCity, co.billingPostcode].filter(Boolean)
+    const worker = e.worker
+
     const svc = getPayslipService()
     await svc.sendPayslip({
       id: e.id,
@@ -255,6 +271,7 @@ export async function sendPayslipForEntry(entryId: string): Promise<{ status: 's
       firstName: e.firstName,
       lastName: e.lastName,
       payrollWeek: e.payrollWeek,
+      payDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
       grossPay: gross,
       taxRate,
       taxAmount,
@@ -262,7 +279,16 @@ export async function sendPayslipForEntry(entryId: string): Promise<{ status: 's
       netToWorker,
       hoursWorked: e.hoursWorked,
       hourlyRate: e.hourlyRate,
-      companyName: e.payrollSubmission.company.name,
+      companyName: co.name,
+      companyAddress: coAddrParts.join('  ') || null,
+      companyRef: co.agencyRef ?? null,
+      companyUTR: co.uniqueTaxRef ?? null,
+      workerAddress1: worker?.addressLine1 ?? null,
+      workerAddress2: worker?.addressLine2 ?? null,
+      workerTown: worker?.town ?? null,
+      workerPostCode: worker?.postCode ?? null,
+      workerNI: worker?.nationalInsurance ?? null,
+      workerUTR: worker?.utrNumber ?? null,
       workerEmail,
     })
 
