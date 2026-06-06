@@ -155,7 +155,7 @@ export async function generatePayslipPdf(data: PdfPayslipData): Promise<Buffer> 
   // ── 3. Body column boxes ────────────────────────────────────────────
   rr(c1X, bodyY, c1W, bodyH, undefined, GREEN)                // left  – transparent
   rr(c2X, bodyY, c2W, ytdTopY - bodyY - ytdGap, WHITE, GREEN) // middle upper – WHITE
-  rr(c3X, bodyY, c3W, bodyH, undefined, GREEN)                // right – transparent
+  rr(c3X, bodyY, c3W, bodyH, WHITE, GREEN)                   // right – WHITE
 
   // ── 4. Left: worker address box – WHITE fill, rounded ─────────────
   const bPad = 5, boxTopY = bodyY + 18, boxH = 122
@@ -228,8 +228,6 @@ export async function generatePayslipPdf(data: PdfPayslipData): Promise<Buffer> 
   tr(totalDed.toFixed(2), c3X + c3W - 6, dedTopY + 54, 8.5, fontBold)
 
   // ── 8. Footer ──────────────────────────────────────────────────────
-  // Left footer: transparent (shows outer LIGHT_GREEN), GREEN border, rounded
-  rr(c1X, footerY, c1W + c2W, footerH, undefined, GREEN)
   // Right (Net Payment): WHITE fill, GREEN border, rounded
   rr(c3X, footerY, c3W, footerH, WHITE, GREEN)
   t('Net Payment', c3X + 10, footerY + 13, 12, fontBold)
