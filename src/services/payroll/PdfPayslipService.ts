@@ -159,7 +159,7 @@ export async function generatePayslipPdf(data: PdfPayslipData): Promise<Buffer> 
 
   // ── 4. Left: worker address box – WHITE fill, rounded ─────────────
   const bPad = 5, boxTopY = bodyY + 18, boxH = 122
-  rr(c1X + bPad, boxTopY, c1W - 2 * bPad, boxH, WHITE, GREEN, BORDER_W, 5)
+  rr(c1X + bPad, boxTopY, c1W - 2 * bPad, boxH, WHITE, GREEN, 5)
   t(workerName, c1X + bPad + 6, boxTopY + 9, 10.5, fontBold)
 
   let ay = boxTopY + 25
@@ -191,7 +191,7 @@ export async function generatePayslipPdf(data: PdfPayslipData): Promise<Buffer> 
   }
 
   // YTD box – WHITE fill, rounded
-  rr(c2X, ytdTopY, c2W, ytdH, WHITE, GREEN, BORDER_W, 4)
+  rr(c2X, ytdTopY, c2W, ytdH, WHITE, GREEN, 4)
   tc('Year to Date', c2X, c2W, ytdTopY + 9, 9.5, fontBold)
   hl(c2X + 2, ytdTopY + 22, c2X + c2W - 2)
   const ytdGross = data.ytdGross ?? data.grossPay
