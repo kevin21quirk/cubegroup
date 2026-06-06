@@ -3,7 +3,22 @@
  * Generates a PDF payslip matching the green-bordered CIS payslip format.
  * Uses pdf-lib (pure JS, no file-system font deps) for Vercel compatibility.
  */
-import { PDFDocument, PDFPage, StandardFonts, rgb, RGB } from 'pdf-lib'
+import {
+  PDFDocument, PDFPage, StandardFonts, rgb, RGB,
+  PDFOperator, PDFOperatorNames, PDFNumber,
+  pushGraphicsState, popGraphicsState,
+  moveTo, lineTo, closePath,
+  setFillingColor, setStrokingColor, setLineWidth,
+  fillAndStroke, fill as pdfFill, stroke as pdfStroke,
+} from 'pdf-lib'
+
+// curveTo is in the pdf-lib bundle but missing from its TypeScript declarations
+const curveTo = (x1: number, y1: number, x2: number, y2: number, x3: number, y3: number): PDFOperator =>
+  PDFOperator.of('c' as PDFOperatorNames, [
+    PDFNumber.of(x1), PDFNumber.of(y1),
+    PDFNumber.of(x2), PDFNumber.of(y2),
+    PDFNumber.of(x3), PDFNumber.of(y3),
+  ])
 
 const GREEN       = rgb(0,    0.8,  0)      // #00CC00 bright lime
 const LIGHT_GREEN = rgb(0.8,  1.0,  0.8)   // #CCFFCC mint green
@@ -11,34 +26,38 @@ const BLACK       = rgb(0,    0,    0)
 const WHITE       = rgb(1,    1,    1)
 const BORDER_W    = 1.5
 const RADIUS      = 6
+const K           = 0.5523  // Bézier constant for quarter-circle approximation
 
-/** SVG rounded-rectangle path in pdf-lib bottom-left coordinates */
-function rrPath(x: number, y: number, w: number, h: number, r: number): string {
-  return [
-    `M${x + r},${y}`,
-    `H${x + w - r}`,
-    `Q${x + w},${y} ${x + w},${y + r}`,
-    `V${y + h - r}`,
-    `Q${x + w},${y + h} ${x + w - r},${y + h}`,
-    `H${x + r}`,
-    `Q${x},${y + h} ${x},${y + h - r}`,
-    `V${y + r}`,
-    `Q${x},${y} ${x + r},${y}`,
-    'Z',
-  ].join(' ')
-}
-
+/**
+ * Draw a rounded rectangle using cubic Bézier curves via pushOperators.
+ * All coordinates are in pdf-lib space (bottom-left origin, Y increases up).
+ * x, y = bottom-left corner; w, h = width/height; r = corner radius.
+ */
 function drawRR(
   page: PDFPage,
   x: number, y: number, w: number, h: number,
-  fill?: RGB, stroke?: RGB, strokeW = BORDER_W, radius = RADIUS,
+  fill?: RGB, stroke?: RGB, strokeW = BORDER_W, r = RADIUS,
 ) {
-  page.drawSvgPath(rrPath(x, y, w, h, radius), {
-    x: 0, y: 0,
-    color:       fill,
-    borderColor: stroke,
-    borderWidth: strokeW,
-  })
+  const kr = K * r
+  const ops = [
+    pushGraphicsState(),
+    ...(fill   ? [setFillingColor(fill)]           : []),
+    ...(stroke ? [setStrokingColor(stroke), setLineWidth(strokeW)] : []),
+    // Path — starting bottom-left, going clockwise
+    moveTo(x + r, y),
+    lineTo(x + w - r, y),
+    curveTo(x + w - r + kr, y,       x + w, y + r - kr,       x + w, y + r),
+    lineTo(x + w, y + h - r),
+    curveTo(x + w, y + h - r + kr,   x + w - r + kr, y + h,   x + w - r, y + h),
+    lineTo(x + r, y + h),
+    curveTo(x + r - kr, y + h,       x, y + h - r + kr,       x, y + h - r),
+    lineTo(x, y + r),
+    curveTo(x, y + r - kr,           x + r - kr, y,           x + r, y),
+    closePath(),
+    fill && stroke ? fillAndStroke() : fill ? pdfFill() : pdfStroke(),
+    popGraphicsState(),
+  ]
+  page.pushOperators(...ops)
 }
 
 export interface PdfPayslipData {
