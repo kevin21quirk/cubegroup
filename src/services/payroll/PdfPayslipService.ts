@@ -148,14 +148,18 @@ export async function generatePayslipPdf(data: PdfPayslipData): Promise<Buffer> 
   if (data.companyUTR)     addrParts.push(`UTR: ${data.companyUTR}`)
   if (addrParts.length)    tc(addrParts.join('   '), M, IW, M + 40, 8.5)
 
-  // ── 3. Body column boxes – transparent fill, GREEN border, rounded ─
-  rr(c1X, bodyY, c1W, bodyH, undefined, GREEN)
-  rr(c2X, bodyY, c2W, bodyH, undefined, GREEN)
-  rr(c3X, bodyY, c3W, bodyH, undefined, GREEN)
+  // Pre-calculate YTD geometry so the pay-details box knows its height
+  const ytdH = 62, ytdTopY = bodyY + bodyH - ytdH
+  const ytdGap = 3  // gap between pay-details box and YTD box
 
-  // ── 4. Left: worker address box – GREEN border, rounded ───────────
+  // ── 3. Body column boxes ────────────────────────────────────────────
+  rr(c1X, bodyY, c1W, bodyH, undefined, GREEN)                // left  – transparent
+  rr(c2X, bodyY, c2W, ytdTopY - bodyY - ytdGap, WHITE, GREEN) // middle upper – WHITE
+  rr(c3X, bodyY, c3W, bodyH, undefined, GREEN)                // right – transparent
+
+  // ── 4. Left: worker address box – WHITE fill, rounded ─────────────
   const bPad = 5, boxTopY = bodyY + 18, boxH = 122
-  rr(c1X + bPad, boxTopY, c1W - 2 * bPad, boxH, undefined, GREEN, 5)
+  rr(c1X + bPad, boxTopY, c1W - 2 * bPad, boxH, WHITE, GREEN, BORDER_W, 5)
   t(workerName, c1X + bPad + 6, boxTopY + 9, 10.5, fontBold)
 
   let ay = boxTopY + 25
@@ -186,9 +190,8 @@ export async function generatePayslipPdf(data: PdfPayslipData): Promise<Buffer> 
     ry2 += 14
   }
 
-  // YTD box – GREEN border, rounded
-  const ytdH = 62, ytdTopY = bodyY + bodyH - ytdH
-  rr(c2X, ytdTopY, c2W, ytdH, undefined, GREEN, 4)
+  // YTD box – WHITE fill, rounded
+  rr(c2X, ytdTopY, c2W, ytdH, WHITE, GREEN, BORDER_W, 4)
   tc('Year to Date', c2X, c2W, ytdTopY + 9, 9.5, fontBold)
   hl(c2X + 2, ytdTopY + 22, c2X + c2W - 2)
   const ytdGross = data.ytdGross ?? data.grossPay
