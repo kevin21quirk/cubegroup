@@ -25,6 +25,8 @@ export interface NormalizedPayrollData {
 
   // Backwards compat / internal
   grossPay:       number
+  expenseAmount?: number          // net expense reimbursement
+  expenseNotes?:  string
   umbrellaCompany: string
   department:     string
   site:           string

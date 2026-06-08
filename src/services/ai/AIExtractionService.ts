@@ -223,6 +223,7 @@ OUTPUT SCHEMA:
       "basicPay": 0, "overtimeHours": 0, "overtimeRate": 0, "overtimePay": 0,
       "holidayHours": 0, "holidayPay": 0, "statutoryPay": 0,
       "totalGrossPay": 0, "grossPay": 0,
+      "expenseAmount": 0, "expenseNotes": "",
       "umbrellaCompany": "", "department": "", "site": "", "notes": "",
       "jobTitle": ""
     }
@@ -255,7 +256,9 @@ FIELD MAPPING GUIDANCE:
 - INVOICE: Populate payrollEntries as line items. Set companyData to the issuing company.
 - CIS: Populate workerData for subcontractors and payrollEntries for CIS amounts.
 - MIXED: Populate all relevant sections.
-- totalGrossPay and grossPay should both reflect total gross earnings. If hourly rate and hours are present but gross is missing, do NOT calculate – leave grossPay as 0.`
+- totalGrossPay and grossPay should both reflect total gross earnings. If hourly rate and hours are present but gross is missing, do NOT calculate – leave grossPay as 0.
+- expenseAmount: populate with any net expense reimbursement value found (labelled "expenses", "net expenses", "materials", "travel expenses", etc.). Leave as 0 if none found.
+- expenseNotes: a brief description of the expense items if present (e.g. "Materials £150, Travel £50"). Leave as empty string if none.`
   }
 
   private buildTextPrompt(content: string, fileType: string): string {
@@ -339,8 +342,10 @@ Return ONLY a valid JSON object matching the schema in the system prompt. All nu
       holidayHours:  Number(e.holidayHours  || 0),
       holidayPay:    Number(e.holidayPay    || 0),
       statutoryPay:  Number(e.statutoryPay  || 0),
-      totalGrossPay: Number(e.totalGrossPay || e.grossPay  || e.gross || 0),
-      grossPay:      Number(e.grossPay      || e.totalGrossPay || e.gross || 0),
+      totalGrossPay:  Number(e.totalGrossPay || e.grossPay  || e.gross || 0),
+      grossPay:       Number(e.grossPay      || e.totalGrossPay || e.gross || 0),
+      expenseAmount:  Number(e.expenseAmount || e.expenses   || e.netExpenses || 0),
+      expenseNotes:   String(e.expenseNotes  || e.expenseDescription || ''),
       umbrellaCompany: String(e.umbrellaCompany || e.umbrella || ''),
       department:    String(e.department    || e.dept      || ''),
       site:          String(e.site          || e.location  || e.project || ''),

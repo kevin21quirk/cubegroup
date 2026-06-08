@@ -467,6 +467,8 @@ export class EmailProcessingService {
           statutoryPay:  entry.statutoryPay  || 0,
           totalGrossPay: entry.totalGrossPay || entry.grossPay || 0,
           grossPay:      entry.grossPay      || entry.totalGrossPay || 0,
+          expenseAmount: entry.expenseAmount || 0,
+          expenseNotes:  entry.expenseNotes  || null,
           department:    entry.department    || null,
           projectSite:   entry.site         || null,
           payrollWeek,
