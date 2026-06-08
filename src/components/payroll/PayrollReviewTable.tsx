@@ -116,20 +116,23 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
   }, { gross: 0, tax: 0, fee: 0, exp: 0, net: 0, umbrella: 0, broker: 0 })
 
 
-  function handleSave() {
-    startTransition(async () => {
-      const updates = entries.map(e => {
-        const er = r(e.id)
-        return { id: e.id, taxRate: er.taxRate, feeAmount: er.feeAmount, umbrellaSharePct: er.umbrellaSharePct, brokerSharePct: er.brokerSharePct, expenseAmount: er.expenseAmount, expenseNotes: er.expenseNotes }
-      })
-      await saveBulkEntryRates(updates)
+  async function saveCurrentRates() {
+    const updates = entries.map(e => {
+      const er = r(e.id)
+      return { id: e.id, taxRate: er.taxRate, feeAmount: er.feeAmount, umbrellaSharePct: er.umbrellaSharePct, brokerSharePct: er.brokerSharePct, expenseAmount: er.expenseAmount, expenseNotes: er.expenseNotes }
     })
+    await saveBulkEntryRates(updates)
+  }
+
+  function handleSave() {
+    startTransition(async () => { await saveCurrentRates() })
   }
 
   async function handleSendOne(entryId: string) {
     setSendingEntry(entryId)
     setSendMessage(null)
     try {
+      await saveCurrentRates()
       const result = await sendPayslipForEntry(entryId)
       if (result.status === 'sent') {
         setEntries(prev => prev.map(e => e.id === entryId ? { ...e, payslipStatus: 'SENT' } : e))
@@ -155,6 +158,7 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
 
   function handleSendAll() {
     startTransition(async () => {
+      await saveCurrentRates()
       const results = await sendPayslipsForSubmission(submissionId)
       setSendResults(results)
       setEntries(prev => prev.map(e => {
@@ -171,6 +175,7 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
   async function handleGenerateInvoice() {
     setInvoicePending(true)
     try {
+      await saveCurrentRates()
       const { invoiceId } = await generateInvoiceForSubmission(submissionId)
       router.push(`/dashboard/invoices/${invoiceId}`)
     } catch (err: any) {
