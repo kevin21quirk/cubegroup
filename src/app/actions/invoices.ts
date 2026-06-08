@@ -69,6 +69,30 @@ export async function getInvoice(id: string) {
   })
 }
 
+export async function deleteInvoice(id: string) {
+  const invoice = await prisma.invoice.findUnique({
+    where: { id },
+    select: { payrollSubmissionId: true },
+  })
+
+  // Delete payments first (no cascade defined on Payment model)
+  await prisma.payment.deleteMany({ where: { invoiceId: id } })
+
+  // Delete the invoice (InvoiceItems cascade automatically)
+  await prisma.invoice.delete({ where: { id } })
+
+  // Revert the linked payroll submission so workflow goes grey at Invoice Generated
+  if (invoice?.payrollSubmissionId) {
+    await prisma.payrollSubmission.update({
+      where: { id: invoice.payrollSubmissionId },
+      data: { workflowState: 'SPREADSHEET_GENERATED' },
+    })
+  }
+
+  revalidatePath('/dashboard/invoices')
+  revalidatePath('/dashboard/workflow')
+}
+
 export async function markInvoiceAsPaid(id: string) {
   await prisma.invoice.update({
     where: { id },

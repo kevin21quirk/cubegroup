@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button'
 import { ArrowLeft, Building2, Calendar, Receipt, CheckCircle, FileText } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getInvoice, markInvoiceAsPaid } from '@/app/actions/invoices'
+import { getInvoice, markInvoiceAsPaid, deleteInvoice } from '@/app/actions/invoices'
+import { DeleteButton } from '@/components/ui/delete-button'
 import { LocalTime } from '@/components/ui/local-time'
 import { formatCurrency } from '@/lib/utils'
 
@@ -154,6 +155,12 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             </Button>
           </Link>
         )}
+        <DeleteButton
+          action={deleteInvoice.bind(null, id)}
+          label={`invoice ${invoice.invoiceNumber}`}
+          description="This will permanently delete the invoice and revert the workflow to before invoice generation. This cannot be undone."
+          redirectTo="/dashboard/invoices"
+        />
       </div>
     </div>
   )
