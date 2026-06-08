@@ -67,25 +67,35 @@ export async function generateInvoiceForSubmission(submissionId: string): Promis
   })
   if (existing) return { invoiceId: existing.id }
 
-  const totalGross = submission.payrollEntries.reduce(
-    (sum, e) => sum + (e.grossPay || e.totalGrossPay || 0), 0
-  )
-  const totalFees = submission.payrollEntries.reduce((sum, e) => sum + (e.feeAmount || 0), 0)
-  const subtotal = parseFloat((totalGross + totalFees).toFixed(2))
+  const totalGross    = submission.payrollEntries.reduce((sum, e) => sum + (e.grossPay || e.totalGrossPay || 0), 0)
+  const totalFees     = submission.payrollEntries.reduce((sum, e) => sum + (e.feeAmount    || 0), 0)
+  const totalExpenses = submission.payrollEntries.reduce((sum, e) => sum + (e.expenseAmount || 0), 0)
+  const subtotal = parseFloat((totalGross + totalFees + totalExpenses).toFixed(2))
 
   const invoiceNumber = `INV-${new Date().getFullYear()}-${submission.id.slice(-8).toUpperCase()}`
   const paymentDays = submission.company.paymentTerms ?? 30
 
   const lineItems = submission.payrollEntries.map(e => {
-    const unitPrice = parseFloat((e.grossPay || e.totalGrossPay || 0).toFixed(2))
-    return {
+    const gross = parseFloat((e.grossPay || e.totalGrossPay || 0).toFixed(2))
+    const items: { description: string; quantity: number; unitPrice: number; amount: number; vatRate: number }[] = [{
       description: `Payroll – ${[e.firstName, e.lastName].filter(Boolean).join(' ') || e.workerName} (${submission.payrollWeek})`,
       quantity: 1,
-      unitPrice,
-      amount: unitPrice,
+      unitPrice: gross,
+      amount: gross,
       vatRate: 0,
+    }]
+    if ((e.expenseAmount ?? 0) > 0) {
+      const exp = parseFloat((e.expenseAmount ?? 0).toFixed(2))
+      items.push({
+        description: `Expenses – ${[e.firstName, e.lastName].filter(Boolean).join(' ') || e.workerName}${e.expenseNotes ? ` (${e.expenseNotes})` : ''}`,
+        quantity: 1,
+        unitPrice: exp,
+        amount: exp,
+        vatRate: 0,
+      })
     }
-  })
+    return items
+  }).flat()
 
   if (totalFees > 0) {
     const feeUnit = parseFloat(totalFees.toFixed(2))
@@ -168,11 +178,11 @@ export async function getPayrollSubmission(id: string) {
   return submission
 }
 
-function calcEntry(gross: number, taxRate: number, feeAmount: number, umbrellaSharePct: number, brokerSharePct: number) {
+function calcEntry(gross: number, taxRate: number, feeAmount: number, umbrellaSharePct: number, brokerSharePct: number, expenseAmount = 0) {
   const taxAmount           = parseFloat(((gross * taxRate) / 100).toFixed(2))
   const umbrellaShareAmount = parseFloat(((feeAmount * umbrellaSharePct) / 100).toFixed(2))
   const brokerShareAmount   = parseFloat(((feeAmount * brokerSharePct)   / 100).toFixed(2))
-  const netToWorker         = parseFloat((gross - taxAmount - feeAmount).toFixed(2))
+  const netToWorker         = parseFloat((gross - taxAmount - feeAmount + expenseAmount).toFixed(2))
   const feeRate             = gross > 0 ? parseFloat(((feeAmount / gross) * 100).toFixed(4)) : 0
   return { taxAmount, feeAmount, feeRate, umbrellaShareAmount, brokerShareAmount, netToWorker }
 }
@@ -181,7 +191,7 @@ export async function updateEntryTaxRate(entryId: string, taxRate: number) {
   const entry = await prisma.payrollEntry.findUnique({ where: { id: entryId } })
   if (!entry) throw new Error('Entry not found')
   const gross = entry.grossPay || entry.totalGrossPay
-  const calc  = calcEntry(gross, taxRate, entry.feeAmount, entry.umbrellaSharePct, entry.brokerSharePct)
+  const calc  = calcEntry(gross, taxRate, entry.feeAmount, entry.umbrellaSharePct, entry.brokerSharePct, entry.expenseAmount ?? 0)
   await prisma.payrollEntry.update({ where: { id: entryId }, data: { taxRate, ...calc, payslipStatus: 'PENDING' } })
   revalidatePath(`/dashboard/payroll/${entry.payrollSubmissionId}`)
 }
@@ -199,7 +209,7 @@ export async function saveBulkEntryRates(updates: {
     const entry = await prisma.payrollEntry.findUnique({ where: { id } })
     if (!entry) continue
     const gross = entry.grossPay || entry.totalGrossPay
-    const calc  = calcEntry(gross, taxRate, feeAmount, umbrellaSharePct, brokerSharePct)
+    const calc  = calcEntry(gross, taxRate, feeAmount, umbrellaSharePct, brokerSharePct, expenseAmount ?? 0)
     await prisma.payrollEntry.update({
       where: { id },
       data: { umbrellaSharePct, brokerSharePct, ...calc, payslipStatus: 'PENDING', expenseAmount: expenseAmount ?? 0, expenseNotes: expenseNotes ?? null },
@@ -242,10 +252,11 @@ export async function sendPayslipsForSubmission(submissionId: string) {
     const workerEmail = await resolveWorkerEmail(e, submission.companyId)
     const gross = e.grossPay || e.totalGrossPay
     const taxRate = e.taxRate ?? 20
-    const taxAmount = e.taxAmount || parseFloat(((gross * taxRate) / 100).toFixed(2))
-    const netToWorker = e.netToWorker || parseFloat((gross - taxAmount).toFixed(2))
-
     const feeAmount = e.feeAmount ?? 0
+    const expenseAmount = e.expenseAmount ?? 0
+    const taxAmount = e.taxAmount || parseFloat(((gross * taxRate) / 100).toFixed(2))
+    const netToWorker = e.netToWorker || parseFloat((gross - taxAmount - feeAmount + expenseAmount).toFixed(2))
+
     const co = submission.company
     const coAddrParts = [co.billingAddress, co.billingCity, co.billingPostcode].filter(Boolean)
 
@@ -260,6 +271,7 @@ export async function sendPayslipsForSubmission(submissionId: string) {
       taxRate,
       taxAmount,
       feeAmount,
+      expenseAmount,
       netToWorker,
       hoursWorked: e.hoursWorked,
       hourlyRate: e.hourlyRate,
@@ -330,8 +342,10 @@ export async function sendPayslipForEntry(entryId: string): Promise<{ status: 's
 
     const gross = e.grossPay || e.totalGrossPay
     const taxRate = e.taxRate ?? 20
+    const feeAmount = e.feeAmount ?? 0
+    const expenseAmount = e.expenseAmount ?? 0
     const taxAmount = e.taxAmount || parseFloat(((gross * taxRate) / 100).toFixed(2))
-    const netToWorker = e.netToWorker || parseFloat((gross - taxAmount).toFixed(2))
+    const netToWorker = e.netToWorker || parseFloat((gross - taxAmount - feeAmount + expenseAmount).toFixed(2))
 
     const co = e.payrollSubmission.company
     const coAddrParts = [co.billingAddress, co.billingCity, co.billingPostcode].filter(Boolean)
@@ -348,7 +362,8 @@ export async function sendPayslipForEntry(entryId: string): Promise<{ status: 's
       grossPay: gross,
       taxRate,
       taxAmount,
-      feeAmount: e.feeAmount ?? 0,
+      feeAmount,
+      expenseAmount,
       netToWorker,
       hoursWorked: e.hoursWorked,
       hourlyRate: e.hourlyRate,

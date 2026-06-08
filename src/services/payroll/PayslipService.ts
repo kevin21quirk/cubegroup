@@ -16,6 +16,7 @@ export interface PayslipEntry {
   taxRate: number
   taxAmount: number
   feeAmount: number
+  expenseAmount?: number | null
   netToWorker: number
   hoursWorked: number
   hourlyRate: number
@@ -69,6 +70,7 @@ export class PayslipService {
     <div class="row"><span>Gross Pay</span><strong>£${entry.grossPay.toFixed(2)}</strong></div>
     <div class="row"><span>CIS / Tax (${entry.taxRate}%)</span><strong>-£${entry.taxAmount.toFixed(2)}</strong></div>
     ${entry.feeAmount > 0 ? `<div class="row"><span>Administration Fee</span><strong>-£${entry.feeAmount.toFixed(2)}</strong></div>` : ''}
+    ${(entry.expenseAmount ?? 0) > 0 ? `<div class="row"><span>Expenses</span><strong>+£${(entry.expenseAmount ?? 0).toFixed(2)}</strong></div>` : ''}
     <div class="row net"><span>Net Payment</span><strong>£${entry.netToWorker.toFixed(2)}</strong></div>
     <p style="font-size:12px;color:#888;margin-top:16px">Your payslip is attached as a PDF. If you have any queries please contact Cube Group.</p>
   </div>
@@ -103,6 +105,7 @@ export class PayslipService {
       taxRate:       entry.taxRate,
       taxAmount:     entry.taxAmount,
       feeAmount:     entry.feeAmount,
+      expenseAmount: entry.expenseAmount,
       netToWorker:   entry.netToWorker,
       hoursWorked:   entry.hoursWorked,
       hourlyRate:    entry.hourlyRate,

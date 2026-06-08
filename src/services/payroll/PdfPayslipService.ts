@@ -80,6 +80,7 @@ export interface PdfPayslipData {
   taxRate: number
   taxAmount: number
   feeAmount: number
+  expenseAmount?: number | null
   netToWorker: number
   hoursWorked?: number | null
   hourlyRate?: number | null
@@ -203,18 +204,28 @@ export async function generatePayslipPdf(data: PdfPayslipData): Promise<Buffer> 
 
   // ── 6. Right: Payments ─────────────────────────────────────────────
   const gross = data.grossPay, grossStr = gross.toFixed(2)
+  const expAmt = data.expenseAmount ?? 0
+  const totalPayStr = (gross + expAmt).toFixed(2)
 
   tc('Payments', c3X, c3W, bodyY + 8, 9.5, fontBold)
   hl(c3X + 1, bodyY + 21, c3X + c3W - 1)
   t('Basic Payment',               c3X + 6, bodyY + 26, 8.5)
   tr(grossStr, c3X + c3W - 6, bodyY + 26, 8.5, fontBold)
-  t('Total Payments',              c3X + 6, bodyY + 40, 8.5, fontBold)
-  tr(grossStr, c3X + c3W - 6, bodyY + 40, 8.5, fontBold)
-  t('Amount Subject to Deduction', c3X + 6, bodyY + 54, 8.5, fontBold)
-  tr(grossStr, c3X + c3W - 6, bodyY + 54, 8.5, fontBold)
+
+  let payRowY = bodyY + 40
+  if (expAmt > 0) {
+    t('Expenses',                  c3X + 6, payRowY, 8.5)
+    tr(expAmt.toFixed(2), c3X + c3W - 6, payRowY, 8.5, fontBold)
+    payRowY += 14
+  }
+  t('Total Payments',              c3X + 6, payRowY, 8.5, fontBold)
+  tr(totalPayStr, c3X + c3W - 6, payRowY, 8.5, fontBold)
+  payRowY += 14
+  t('Amount Subject to Deduction', c3X + 6, payRowY, 8.5, fontBold)
+  tr(grossStr, c3X + c3W - 6, payRowY, 8.5, fontBold)
 
   // ── 7. Right: Deductions ───────────────────────────────────────────
-  const dedTopY = bodyY + 72
+  const dedTopY = payRowY + 18
   const totalDed = (data.feeAmount ?? 0) + data.taxAmount
 
   hl(c3X + 1, dedTopY, c3X + c3W - 1)
