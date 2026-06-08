@@ -63,16 +63,20 @@ export async function generateInvoiceForSubmission(submissionId: string): Promis
   // Check if an invoice already exists for this submission
   const existing = await prisma.invoice.findFirst({
     where: { payrollSubmissionId: submissionId, invoiceType: 'CLIENT_INVOICE' },
-    select: { id: true },
+    select: { id: true, paymentStatus: true },
   })
-  if (existing) return { invoiceId: existing.id }
+  // If already PAID, never touch it – just return it
+  if (existing?.paymentStatus === 'PAID') return { invoiceId: existing.id }
 
+  // ── Build line items + totals from current (just-saved) entry data ──────
   const totalGross    = submission.payrollEntries.reduce((sum, e) => sum + (e.grossPay || e.totalGrossPay || 0), 0)
   const totalFees     = submission.payrollEntries.reduce((sum, e) => sum + (e.feeAmount    || 0), 0)
   const totalExpenses = submission.payrollEntries.reduce((sum, e) => sum + (e.expenseAmount || 0), 0)
   const subtotal = parseFloat((totalGross + totalFees + totalExpenses).toFixed(2))
 
-  const invoiceNumber = `INV-${new Date().getFullYear()}-${submission.id.slice(-8).toUpperCase()}`
+  const invoiceNumber = existing
+    ? (await prisma.invoice.findUnique({ where: { id: existing.id }, select: { invoiceNumber: true } }))!.invoiceNumber
+    : `INV-${new Date().getFullYear()}-${submission.id.slice(-8).toUpperCase()}`
   const paymentDays = submission.company.paymentTerms ?? 30
 
   const lineItems = submission.payrollEntries.map(e => {
@@ -108,29 +112,47 @@ export async function generateInvoiceForSubmission(submissionId: string): Promis
     })
   }
 
-  const invoice = await prisma.invoice.create({
-    data: {
-      companyId:           submission.companyId,
-      payrollSubmissionId: submissionId,
-      invoiceNumber,
-      invoiceType:         'CLIENT_INVOICE',
-      billingName:         submission.company.name,
-      billingAddress:      submission.company.billingAddress  ?? undefined,
-      billingCity:         submission.company.billingCity     ?? undefined,
-      billingPostcode:     submission.company.billingPostcode ?? undefined,
-      subtotal,
-      vatAmount:           0,
-      totalAmount:         subtotal,
-      paymentStatus:       'UNPAID',
-      issueDate:           new Date(),
-      dueDate:             new Date(Date.now() + paymentDays * 86_400_000),
-      items:               { create: lineItems },
-    },
-  })
+  let invoiceId: string
+
+  if (existing) {
+    // Rebuild: wipe old line items then update totals
+    await prisma.invoiceItem.deleteMany({ where: { invoiceId: existing.id } })
+    await prisma.invoice.update({
+      where: { id: existing.id },
+      data: {
+        subtotal,
+        vatAmount:   0,
+        totalAmount: subtotal,
+        items:       { create: lineItems },
+      },
+    })
+    invoiceId = existing.id
+  } else {
+    const invoice = await prisma.invoice.create({
+      data: {
+        companyId:           submission.companyId,
+        payrollSubmissionId: submissionId,
+        invoiceNumber,
+        invoiceType:         'CLIENT_INVOICE',
+        billingName:         submission.company.name,
+        billingAddress:      submission.company.billingAddress  ?? undefined,
+        billingCity:         submission.company.billingCity     ?? undefined,
+        billingPostcode:     submission.company.billingPostcode ?? undefined,
+        subtotal,
+        vatAmount:           0,
+        totalAmount:         subtotal,
+        paymentStatus:       'UNPAID',
+        issueDate:           new Date(),
+        dueDate:             new Date(Date.now() + paymentDays * 86_400_000),
+        items:               { create: lineItems },
+      },
+    })
+    invoiceId = invoice.id
+  }
 
   revalidatePath(`/dashboard/payroll/${submissionId}`)
   revalidatePath('/dashboard/invoices')
-  return { invoiceId: invoice.id }
+  return { invoiceId }
 }
 
 export async function getPayrollSubmission(id: string) {
