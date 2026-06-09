@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 import { getGmailSendService } from '@/services/email/GmailSendService'
 import { formatCurrency } from '@/lib/utils'
 import { generateInvoicePdf } from '@/services/payroll/PdfInvoiceService'
+import { UmbrellaPayrollService } from '@/services/umbrella/UmbrellaPayrollService'
 
 export async function createInvoice(formData: FormData) {
   const companyId = formData.get('companyId') as string
@@ -204,4 +205,57 @@ export async function markInvoiceAsPaid(id: string) {
 
   revalidatePath('/dashboard/invoices')
   revalidatePath(`/dashboard/invoices/${id}`)
+}
+
+export async function markInvoicePaidAndSendUmbrella(
+  id: string
+): Promise<{ success: boolean; umbrellaSent: number; umbrellaErrors: string[]; error?: string }> {
+  const invoice = await prisma.invoice.findUnique({
+    where: { id },
+    select: { payrollSubmissionId: true, invoiceNumber: true },
+  })
+  if (!invoice) return { success: false, umbrellaSent: 0, umbrellaErrors: [], error: 'Invoice not found' }
+
+  // 1. Mark invoice as paid
+  await prisma.invoice.update({
+    where: { id },
+    data: { paymentStatus: 'PAID', paidAt: new Date() },
+  })
+
+  // 2. Update workflow state to PAYMENT_RECEIVED
+  if (invoice.payrollSubmissionId) {
+    await prisma.payrollSubmission.update({
+      where: { id: invoice.payrollSubmissionId },
+      data: { workflowState: 'PAYMENT_RECEIVED' },
+    })
+  }
+
+  // 3. Send payroll CSV to umbrella company
+  let umbrellaSent = 0
+  let umbrellaErrors: string[] = []
+
+  if (invoice.payrollSubmissionId) {
+    try {
+      const svc = new UmbrellaPayrollService()
+      const result = await svc.sendPayrollCsvForSubmission(invoice.payrollSubmissionId)
+      umbrellaSent = result.sent
+      umbrellaErrors = result.errors
+
+      // 4. Advance workflow to UMBRELLA_INVOICE_SENT if at least one was sent
+      if (result.sent > 0) {
+        await prisma.payrollSubmission.update({
+          where: { id: invoice.payrollSubmissionId },
+          data: { workflowState: 'UMBRELLA_INVOICE_SENT' },
+        })
+      }
+    } catch (err: any) {
+      umbrellaErrors = [err?.message ?? 'Failed to send umbrella CSV']
+    }
+  }
+
+  revalidatePath('/dashboard/invoices')
+  revalidatePath(`/dashboard/invoices/${id}`)
+  revalidatePath('/dashboard/workflow')
+
+  return { success: true, umbrellaSent, umbrellaErrors }
 }

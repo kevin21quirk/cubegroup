@@ -1,14 +1,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Building2, Calendar, Receipt, CheckCircle, FileText, Mail } from 'lucide-react'
+import { ArrowLeft, Building2, Calendar, Receipt, FileText } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getInvoice, markInvoiceAsPaid, deleteInvoice, emailInvoice } from '@/app/actions/invoices'
+import { getInvoice, deleteInvoice, emailInvoice, markInvoicePaidAndSendUmbrella } from '@/app/actions/invoices'
 import { DeleteButton } from '@/components/ui/delete-button'
 import { LocalTime } from '@/components/ui/local-time'
 import { formatCurrency } from '@/lib/utils'
 import { EmailInvoiceButton } from '@/components/invoices/EmailInvoiceButton'
+import { InvoicePaidButton } from '@/components/invoices/InvoicePaidButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -141,12 +142,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
       {/* Actions */}
       <div className="flex items-center gap-3 flex-wrap">
         {!isPaid && (
-          <form action={async () => { 'use server'; await markInvoiceAsPaid(id) }}>
-            <Button type="submit" className="bg-green-600 hover:bg-green-700">
-              <CheckCircle className="mr-2 h-4 w-4" />
-              Mark as Paid
-            </Button>
-          </form>
+          <InvoicePaidButton action={markInvoicePaidAndSendUmbrella.bind(null, id)} />
         )}
         <EmailInvoiceButton action={emailInvoice.bind(null, id)} invoiceEmail={(invoice.company as any)?.invoiceEmail ?? null} />
         {invoice.payrollSubmission && (

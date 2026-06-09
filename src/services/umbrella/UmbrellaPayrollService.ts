@@ -20,7 +20,7 @@ export class UmbrellaPayrollService {
     const submission = await prisma.payrollSubmission.findUnique({
       where: { id: payrollSubmissionId },
       include: {
-        company: true,
+        company: { include: { umbrellaCompany: true } },
         payrollEntries: {
           include: {
             umbrellaCompany: true,
@@ -32,24 +32,33 @@ export class UmbrellaPayrollService {
 
     if (!submission) throw new Error('Payroll submission not found')
 
-    // Group entries by umbrella company
+    // Resolve the company-level default umbrella (fallback)
+    const companyUmbrella = (submission.company as any).umbrellaCompany as
+      (typeof submission.payrollEntries[0]['umbrellaCompany']) | null | undefined
+
+    // Group entries by umbrella company (fall back to company-level umbrella)
     const byUmbrella = new Map<string, typeof submission.payrollEntries>()
     for (const entry of submission.payrollEntries) {
-      if (!entry.umbrellaCompany) continue
-      const key = entry.umbrellaCompany.id
+      const umbrella = entry.umbrellaCompany ?? companyUmbrella
+      if (!umbrella) continue
+      // Attach the resolved umbrella onto the entry so buildCsv can read it
+      ;(entry as any)._resolvedUmbrella = umbrella
+      const key = umbrella.id
       if (!byUmbrella.has(key)) byUmbrella.set(key, [])
       byUmbrella.get(key)!.push(entry)
     }
 
     // Also collect entries with no umbrella company for the default send
-    const noUmbrella = submission.payrollEntries.filter(e => !e.umbrellaCompany)
+    const noUmbrella = submission.payrollEntries.filter(
+      e => !e.umbrellaCompany && !companyUmbrella
+    )
 
     let sent = 0
     const errors: string[] = []
 
     // Send to each umbrella company
     for (const [, entries] of byUmbrella) {
-      const umbrella = entries[0].umbrellaCompany!
+      const umbrella = ((entries[0] as any)._resolvedUmbrella ?? entries[0].umbrellaCompany)!
       try {
         const csv = this.buildCsv(entries, submission.company.name, submission.payrollWeek)
         const filename = `Payroll_${submission.company.name.replace(/[^a-zA-Z0-9]/g, '_')}_${submission.payrollWeek}.csv`
@@ -92,6 +101,8 @@ export class UmbrellaPayrollService {
       feeAmount: number
       umbrellaShareAmount: number
       netToWorker: number
+      expenseAmount?: number | null
+      expenseNotes?: string | null
       payrollWeek: string
       worker?: { nationalInsurance?: string | null } | null
     }>,
@@ -107,11 +118,13 @@ export class UmbrellaPayrollService {
       'Gross Pay',
       'CIS Tax Deduction',
       'Umbrella Fee',
+      'Expenses',
       'Net to Worker',
     ]
 
     const rows = entries.map(e => {
       const gross = e.grossPay || e.totalGrossPay
+      const expenses = e.expenseAmount ?? 0
       const name = [e.firstName, e.lastName].filter(Boolean).join(' ') || e.workerName
       return [
         this.csvCell(name),
@@ -122,16 +135,18 @@ export class UmbrellaPayrollService {
         gross.toFixed(2),
         e.taxAmount.toFixed(2),
         e.umbrellaShareAmount.toFixed(2),
+        expenses.toFixed(2),
         e.netToWorker.toFixed(2),
       ]
     })
 
-    const totalsGross = entries.reduce((s, e) => s + (e.grossPay || e.totalGrossPay), 0)
-    const totalsTax   = entries.reduce((s, e) => s + e.taxAmount, 0)
-    const totalsFee   = entries.reduce((s, e) => s + e.umbrellaShareAmount, 0)
-    const totalsNet   = entries.reduce((s, e) => s + e.netToWorker, 0)
+    const totalsGross    = entries.reduce((s, e) => s + (e.grossPay || e.totalGrossPay), 0)
+    const totalsTax      = entries.reduce((s, e) => s + e.taxAmount, 0)
+    const totalsFee      = entries.reduce((s, e) => s + e.umbrellaShareAmount, 0)
+    const totalsExpenses = entries.reduce((s, e) => s + (e.expenseAmount ?? 0), 0)
+    const totalsNet      = entries.reduce((s, e) => s + e.netToWorker, 0)
 
-    const totalsRow = ['TOTAL', '', '', '', '', totalsGross.toFixed(2), totalsTax.toFixed(2), totalsFee.toFixed(2), totalsNet.toFixed(2)]
+    const totalsRow = ['TOTAL', '', '', '', '', totalsGross.toFixed(2), totalsTax.toFixed(2), totalsFee.toFixed(2), totalsExpenses.toFixed(2), totalsNet.toFixed(2)]
 
     return [
       `# Payroll CSV – ${companyName} – Week ${payrollWeek}`,
