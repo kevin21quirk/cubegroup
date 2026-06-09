@@ -34,6 +34,7 @@ export async function createCompany(formData: FormData) {
       billingCity:         str(formData, 'billingCity'),
       billingPostcode:     str(formData, 'billingPostcode'),
       billingCountry:      str(formData, 'billingCountry') || 'United Kingdom',
+      invoiceEmail:        str(formData, 'invoiceEmail'),
       paymentTerms:        parseInt(str(formData, 'paymentTerms') || '30', 10),
       // Agency
       agencyName:          str(formData, 'agencyName'),
@@ -138,6 +139,7 @@ export async function updateCompany(id: string, formData: FormData) {
       billingCity:         str(formData, 'billingCity'),
       billingPostcode:     str(formData, 'billingPostcode'),
       billingCountry:      str(formData, 'billingCountry') || 'United Kingdom',
+      invoiceEmail:        str(formData, 'invoiceEmail'),
       paymentTerms:        parseInt(str(formData, 'paymentTerms') || '30', 10),
       isActive:            formData.get('isActive') === 'true',
       // Agency

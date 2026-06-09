@@ -118,6 +118,7 @@ model Company {
   billingPostcode       String?
   billingCity           String?
   billingCountry        String                @default("United Kingdom")
+  invoiceEmail          String?               // Email address to send invoices to
   paymentTerms          Int                   @default(30)
   payrollFrequency      String                @default("Weekly")
   isActive              Boolean               @default(true)

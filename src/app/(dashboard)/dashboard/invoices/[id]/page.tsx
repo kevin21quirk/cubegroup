@@ -1,13 +1,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Building2, Calendar, Receipt, CheckCircle, FileText } from 'lucide-react'
+import { ArrowLeft, Building2, Calendar, Receipt, CheckCircle, FileText, Mail } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getInvoice, markInvoiceAsPaid, deleteInvoice } from '@/app/actions/invoices'
+import { getInvoice, markInvoiceAsPaid, deleteInvoice, emailInvoice } from '@/app/actions/invoices'
 import { DeleteButton } from '@/components/ui/delete-button'
 import { LocalTime } from '@/components/ui/local-time'
 import { formatCurrency } from '@/lib/utils'
+import { EmailInvoiceButton } from '@/components/invoices/EmailInvoiceButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -138,7 +139,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
       </Card>
 
       {/* Actions */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         {!isPaid && (
           <form action={async () => { 'use server'; await markInvoiceAsPaid(id) }}>
             <Button type="submit" className="bg-green-600 hover:bg-green-700">
@@ -147,6 +148,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             </Button>
           </form>
         )}
+        <EmailInvoiceButton action={emailInvoice.bind(null, id)} invoiceEmail={(invoice.company as any)?.invoiceEmail ?? null} />
         {invoice.payrollSubmission && (
           <Link href={`/dashboard/payroll/${invoice.payrollSubmissionId}`}>
             <Button variant="outline">

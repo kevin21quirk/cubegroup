@@ -109,6 +109,7 @@ export default function NewCompanyPage() {
                   <option value="Other">Other</option>
                 </select>
               </div>
+              <Field label="Invoice Email" name="invoiceEmail" type="email" placeholder="accounts@agency.com" />
               <Field label="Payment Terms (days)" name="paymentTerms" type="number" placeholder="30" />
             </div>
           </CardContent>

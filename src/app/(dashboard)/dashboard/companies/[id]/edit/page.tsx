@@ -129,6 +129,7 @@ export default async function EditCompanyPage({ params, searchParams }: EditComp
                   <option value="Other">Other</option>
                 </select>
               </div>
+              <Field label="Invoice Email" name="invoiceEmail" type="email" defaultValue={c.invoiceEmail ?? undefined} placeholder="accounts@agency.com" />
               <Field label="Payment Terms (days)" name="paymentTerms" type="number" defaultValue={company.paymentTerms ?? 30} />
             </div>
           </CardContent>
