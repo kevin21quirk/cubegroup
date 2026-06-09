@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { getGmailSendService } from '@/services/email/GmailSendService'
 import { formatCurrency } from '@/lib/utils'
+import { generateInvoicePdf } from '@/services/payroll/PdfInvoiceService'
 
 export async function createInvoice(formData: FormData) {
   const companyId = formData.get('companyId') as string
@@ -157,8 +158,35 @@ export async function emailInvoice(id: string): Promise<{ sent: boolean; to?: st
 </html>`
 
   try {
+    const pdfBuffer = await generateInvoicePdf({
+      invoiceNumber:  invoice.invoiceNumber,
+      issueDate:      invoice.issueDate,
+      dueDate:        invoice.dueDate,
+      billingName:    invoice.billingName,
+      billingAddress: invoice.billingAddress,
+      billingCity:    invoice.billingCity,
+      billingPostcode: invoice.billingPostcode,
+      subtotal:       invoice.subtotal,
+      vatAmount:      invoice.vatAmount,
+      totalAmount:    invoice.totalAmount,
+      items: (invoice.items ?? []).map(i => ({
+        description: i.description,
+        quantity:    i.quantity,
+        unitPrice:   i.unitPrice,
+        amount:      i.amount,
+      })),
+    })
+
+    const filename = `Invoice_${invoice.invoiceNumber.replace(/[^a-z0-9_\-]/gi, '_')}.pdf`
+
     const sender = getGmailSendService()
-    await sender.sendEmail(to, `Invoice ${invoice.invoiceNumber} – ${invoice.billingName}`, html, 'Cube Group')
+    await sender.sendEmail(
+      to,
+      `Invoice ${invoice.invoiceNumber} – ${invoice.billingName}`,
+      html,
+      'Cube Group',
+      [{ filename, mimeType: 'application/pdf', data: pdfBuffer }],
+    )
     return { sent: true, to }
   } catch (err: any) {
     return { sent: false, error: err?.message ?? 'Failed to send email' }
