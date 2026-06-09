@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input'
 import { ArrowLeft, CheckCircle2, XCircle, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
 import { getCompany, updateCompany } from '@/app/actions/companies'
+import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
@@ -29,7 +30,10 @@ interface EditCompanyPageProps {
 export default async function EditCompanyPage({ params, searchParams }: EditCompanyPageProps) {
   const { id } = await params
   const sp = await searchParams
-  const company = await getCompany(id)
+  const [company, umbrellaCompanies] = await Promise.all([
+    getCompany(id),
+    prisma.umbrellaCompany.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
+  ])
   if (!company) notFound()
 
   const c = company as any
@@ -131,6 +135,25 @@ export default async function EditCompanyPage({ params, searchParams }: EditComp
               </div>
               <Field label="Invoice Email" name="invoiceEmail" type="email" defaultValue={c.invoiceEmail ?? undefined} placeholder="accounts@agency.com" />
               <Field label="Payment Terms (days)" name="paymentTerms" type="number" defaultValue={company.paymentTerms ?? 30} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ── Payroll Company ── */}
+        <Card>
+          <CardHeader className="pb-3"><CardTitle className="text-base">Payroll Company</CardTitle></CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-1.5">
+                <label htmlFor="umbrellaCompanyId" className="text-sm font-medium">Payroll / Umbrella Company</label>
+                <select id="umbrellaCompanyId" name="umbrellaCompanyId" defaultValue={c.umbrellaCompanyId || ''} className={sel}>
+                  <option value="">— None —</option>
+                  {umbrellaCompanies.map(u => (
+                    <option key={u.id} value={u.id}>{u.name}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">When an invoice is marked as paid, the payroll spreadsheet will be emailed to this company.</p>
+              </div>
             </div>
           </CardContent>
         </Card>

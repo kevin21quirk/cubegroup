@@ -47,6 +47,8 @@ export async function createCompany(formData: FormData) {
       // Email processing
       emailDomains,
       remoteFolder:        str(formData, 'remoteFolder'),
+      // Payroll company
+      umbrellaCompanyId:   str(formData, 'umbrellaCompanyId') || undefined,
       // Accounting
       accountingSystem:    str(formData, 'accountingSystem') || 'None',
       isActive: true,
@@ -153,6 +155,8 @@ export async function updateCompany(id: string, formData: FormData) {
       // Email processing
       ...(emailDomains !== undefined ? { emailDomains } : {}),
       remoteFolder:        str(formData, 'remoteFolder'),
+      // Payroll company
+      umbrellaCompanyId:   str(formData, 'umbrellaCompanyId') || null,
       // Accounting
       accountingSystem:    str(formData, 'accountingSystem') || 'None',
     },

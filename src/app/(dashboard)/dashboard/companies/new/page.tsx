@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { createCompany } from '@/app/actions/companies'
+import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,7 +21,9 @@ function Field({ label, name, type = 'text', placeholder, required }: {
   )
 }
 
-export default function NewCompanyPage() {
+export default async function NewCompanyPage() {
+  const umbrellaCompanies = await prisma.umbrellaCompany.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } })
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -77,6 +80,25 @@ export default function NewCompanyPage() {
                   <option value="Monthly">Monthly</option>
                   <option value="4-Weekly">4-Weekly</option>
                 </select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Payroll Company */}
+        <Card>
+          <CardHeader className="pb-3"><CardTitle className="text-base">Payroll Company</CardTitle></CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-1.5">
+                <label htmlFor="umbrellaCompanyId" className="text-sm font-medium">Payroll / Umbrella Company</label>
+                <select id="umbrellaCompanyId" name="umbrellaCompanyId" className={sel}>
+                  <option value="">— None —</option>
+                  {umbrellaCompanies.map(u => (
+                    <option key={u.id} value={u.id}>{u.name}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">When an invoice is marked as paid, the payroll spreadsheet will be emailed to this company.</p>
               </div>
             </div>
           </CardContent>
