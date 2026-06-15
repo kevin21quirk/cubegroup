@@ -150,17 +150,28 @@ export default async function WorkflowPage({ searchParams }: WorkflowPageProps) 
             <div className="divide-y">
               {weeks.map(([week, subs]) => {
                 // Use the highest-ranked non-failed submission state
-                const isFailed    = subs.every(s => s.workflowState === 'FAILED')
-                const maxRank     = isFailed ? 0 : Math.max(
+                const isFailed     = subs.every(s => s.workflowState === 'FAILED')
+                const rawMaxRank   = isFailed ? 0 : Math.max(
                   ...subs
                     .filter(s => s.workflowState !== 'FAILED')
                     .map(s => STATE_RANK[s.workflowState] ?? 0),
                   0
                 )
-                const allInvoices = subs.flatMap(s => s.invoices)
+                const allInvoices  = subs.flatMap(s => s.invoices)
+                const hasInvoice   = allInvoices.length > 0
+                const hasPaid      = allInvoices.some(i =>
+                  i.paymentStatus === 'PAID' || i.paymentStatus === 'PARTIAL'
+                )
 
-                // Complete only if genuinely at/past payment — not just COMPLETED from an early skip
-                const isComplete  = maxRank >= STATE_RANK.PAYMENT_RECEIVED && !isFailed
+                // Cap maxRank at real-world evidence:
+                //  - Invoice Sent (rank 6) requires an invoice to actually exist
+                //  - Payment Received (rank 7) requires at least one paid/partial invoice
+                const maxRank = hasInvoice
+                  ? (hasPaid ? rawMaxRank : Math.min(rawMaxRank, 6))
+                  : Math.min(rawMaxRank, 5)
+
+                // Complete only if genuinely paid — not just COMPLETED from an early skip
+                const isComplete   = hasPaid && !isFailed
 
 
                 return (
