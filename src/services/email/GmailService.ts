@@ -101,6 +101,13 @@ export class GmailService {
       update: { value: email },
     })
 
+    // Record when the token was last refreshed so we can warn before 7-day expiry
+    await prisma.systemConfig.upsert({
+      where:  { key: 'GOOGLE_TOKEN_REFRESHED_AT' },
+      create: { key: 'GOOGLE_TOKEN_REFRESHED_AT', value: new Date().toISOString(), description: 'When the Gmail OAuth token was last authorised' },
+      update: { value: new Date().toISOString() },
+    })
+
     return { email, expiryDate: tokens.expiry_date }
   }
 
