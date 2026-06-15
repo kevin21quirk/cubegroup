@@ -323,10 +323,16 @@ export async function sendPayslipsForSubmission(submissionId: string) {
     }
   }
 
-  await prisma.payrollSubmission.update({
-    where: { id: submissionId },
-    data: { workflowState: 'COMPLETED' },
-  })
+  // Only advance to SAVED_TO_SERVER — never regress a state that's already further along
+  // (e.g. don't downgrade INVOICE_SENT or PAYMENT_RECEIVED if payslips are resent)
+  const lateStates = ['READY_FOR_INVOICE', 'INVOICE_SENT', 'AWAITING_PAYMENT',
+                      'PAYMENT_RECEIVED', 'UMBRELLA_INVOICE_SENT', 'COMPLETED']
+  if (!lateStates.includes(submission.workflowState)) {
+    await prisma.payrollSubmission.update({
+      where: { id: submissionId },
+      data: { workflowState: 'SAVED_TO_SERVER' },
+    })
+  }
 
   revalidatePath(`/dashboard/payroll/${submissionId}`)
   return results
