@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { getSession } from '@/lib/auth'
 import { getPayslipService } from '@/services/payroll/PayslipService'
 
 export async function createPayrollSubmission(formData: FormData) {
@@ -32,7 +33,13 @@ export async function createPayrollSubmission(formData: FormData) {
 }
 
 export async function getPayrollSubmissions() {
+  const session = await getSession()
+  const isStaff = session?.role === 'STAFF'
+  const assignedIds = session?.assignedCompanyIds ?? []
+  const companyFilter = isStaff && assignedIds.length > 0 ? { companyId: { in: assignedIds } } : {}
+
   return await prisma.payrollSubmission.findMany({
+    where: companyFilter,
     orderBy: { createdAt: 'desc' },
     include: {
       company: true,

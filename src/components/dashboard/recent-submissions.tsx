@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { getSession } from '@/lib/auth'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatDate } from '@/lib/utils'
@@ -8,7 +9,13 @@ import Link from 'next/link'
 export const dynamic = 'force-dynamic'
 
 export async function RecentSubmissions() {
+  const session = await getSession()
+  const isStaff = session?.role === 'STAFF'
+  const assignedIds = session?.assignedCompanyIds ?? []
+  const companyFilter = isStaff && assignedIds.length > 0 ? { companyId: { in: assignedIds } } : {}
+
   const submissions = await prisma.payrollSubmission.findMany({
+    where: companyFilter,
     take: 10,
     orderBy: { createdAt: 'desc' },
     include: { company: true },

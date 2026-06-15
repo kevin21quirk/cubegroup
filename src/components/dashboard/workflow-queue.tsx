@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { getSession } from '@/lib/auth'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 
@@ -6,8 +7,14 @@ import { Progress } from '@/components/ui/progress'
 export const dynamic = 'force-dynamic'
 
 export async function WorkflowQueue() {
+  const session = await getSession()
+  const isStaff = session?.role === 'STAFF'
+  const assignedIds = session?.assignedCompanyIds ?? []
+  const companyFilter = isStaff && assignedIds.length > 0 ? { companyId: { in: assignedIds } } : {}
+
   const rawStats = await prisma.payrollSubmission.groupBy({
     by: ['workflowState'],
+    where: companyFilter,
     _count: { workflowState: true },
     orderBy: { workflowState: 'asc' },
   })

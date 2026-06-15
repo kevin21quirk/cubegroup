@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { getSession } from '@/lib/auth'
 import { getGmailSendService } from '@/services/email/GmailSendService'
 import { formatCurrency } from '@/lib/utils'
 import { generateInvoicePdf } from '@/services/payroll/PdfInvoiceService'
@@ -53,7 +54,13 @@ export async function createInvoice(formData: FormData) {
 }
 
 export async function getInvoices() {
+  const session = await getSession()
+  const isStaff = session?.role === 'STAFF'
+  const assignedIds = session?.assignedCompanyIds ?? []
+  const companyFilter = isStaff && assignedIds.length > 0 ? { companyId: { in: assignedIds } } : {}
+
   return await prisma.invoice.findMany({
+    where: companyFilter,
     orderBy: { createdAt: 'desc' },
     include: {
       company: true,

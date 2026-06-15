@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { getSession } from '@/lib/auth'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { FileText, AlertCircle, Clock, DollarSign } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
@@ -7,16 +8,22 @@ import { formatCurrency } from '@/lib/utils'
 export const dynamic = 'force-dynamic'
 
 export async function DashboardStats() {
+  const session = await getSession()
+  const isStaff = session?.role === 'STAFF'
+  const assignedIds = session?.assignedCompanyIds ?? []
+  const subFilter  = isStaff && assignedIds.length > 0 ? { companyId: { in: assignedIds } } : {}
+  const invFilter  = isStaff && assignedIds.length > 0 ? { companyId: { in: assignedIds } } : {}
+
   const [totalSubmissions, pendingValidation, awaitingPayment, unpaidAggregate] = await Promise.all([
-    prisma.payrollSubmission.count(),
+    prisma.payrollSubmission.count({ where: subFilter }),
     prisma.payrollSubmission.count({
-      where: { workflowState: { in: ['VALIDATION_FAILED', 'AWAITING_REVIEW'] } },
+      where: { ...subFilter, workflowState: { in: ['VALIDATION_FAILED', 'AWAITING_REVIEW'] } },
     }),
     prisma.invoice.count({
-      where: { paymentStatus: 'UNPAID' },
+      where: { ...invFilter, paymentStatus: 'UNPAID' },
     }),
     prisma.invoice.aggregate({
-      where: { paymentStatus: { in: ['UNPAID', 'PARTIAL'] } },
+      where: { ...invFilter, paymentStatus: { in: ['UNPAID', 'PARTIAL'] } },
       _sum: { totalAmount: true },
     }),
   ])
