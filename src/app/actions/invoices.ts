@@ -39,7 +39,16 @@ export async function createInvoice(formData: FormData) {
     },
   })
 
+  // Advance workflow to READY_FOR_INVOICE when invoice is generated
+  if (payrollSubmissionId) {
+    await prisma.payrollSubmission.update({
+      where: { id: payrollSubmissionId },
+      data:  { workflowState: 'READY_FOR_INVOICE' },
+    })
+  }
+
   revalidatePath('/dashboard/invoices')
+  revalidatePath('/dashboard/workflow')
   redirect(`/dashboard/invoices/${invoice.id}`)
 }
 
@@ -87,11 +96,11 @@ export async function deleteInvoice(id: string) {
   // Delete the invoice (InvoiceItems cascade automatically)
   await prisma.invoice.delete({ where: { id } })
 
-  // Revert the linked payroll submission so workflow goes grey at Invoice Generated
+  // Revert workflow to SAVED_TO_SERVER so payslips-sent stage is preserved but invoice is gone
   if (invoice?.payrollSubmissionId) {
     await prisma.payrollSubmission.update({
       where: { id: invoice.payrollSubmissionId },
-      data: { workflowState: 'SPREADSHEET_GENERATED' },
+      data: { workflowState: 'SAVED_TO_SERVER' },
     })
   }
 
@@ -190,6 +199,16 @@ export async function emailInvoice(id: string): Promise<{ sent: boolean; to?: st
       'Cube Group',
       [{ filename, mimeType: 'application/pdf', data: pdfBuffer }],
     )
+
+    // Advance workflow to INVOICE_SENT now the invoice has been emailed to the client
+    if (invoice.payrollSubmissionId) {
+      await prisma.payrollSubmission.update({
+        where: { id: invoice.payrollSubmissionId },
+        data:  { workflowState: 'INVOICE_SENT' },
+      })
+      revalidatePath('/dashboard/workflow')
+    }
+
     return { sent: true, to }
   } catch (err: any) {
     return { sent: false, error: err?.message ?? 'Failed to send email' }

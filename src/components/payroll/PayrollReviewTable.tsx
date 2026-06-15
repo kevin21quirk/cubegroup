@@ -151,6 +151,7 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
 
   function handleApprove() {
     startTransition(async () => {
+      await saveCurrentRates()
       await approveAllEntries(submissionId)
       setEntries(prev => prev.map(e => ({ ...e, payslipStatus: 'APPROVED' })))
     })

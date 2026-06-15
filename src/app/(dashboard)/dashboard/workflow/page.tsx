@@ -13,25 +13,26 @@ const STATE_RANK: Record<string, number> = {
   EMAIL_RECEIVED:        1,
   ATTACHMENT_DOWNLOADED: 2,
   AI_PROCESSING:         3,
-  VALIDATION_FAILED:     3,  // still in processing phase
-  AWAITING_REVIEW:       3,  // still in processing phase
+  VALIDATION_FAILED:     3,
+  AWAITING_REVIEW:       3,
   SPREADSHEET_GENERATED: 4,
-  SAVED_TO_SERVER:       5,  // files delivered to server
-  READY_FOR_INVOICE:     5,  // same display stage
-  INVOICE_SENT:          6,  // invoice generated & sent
-  AWAITING_PAYMENT:      6,  // same display stage
+  SAVED_TO_SERVER:       4,  // same display stage as data processed
+  READY_FOR_INVOICE:     5,  // invoice generated in system
+  INVOICE_SENT:          6,  // invoice emailed to client
+  AWAITING_PAYMENT:      6,
   PAYMENT_RECEIVED:      7,
   UMBRELLA_INVOICE_SENT: 8,
-  COMPLETED:             9,
-  FAILED:                0,  // treated separately — never ticks pipeline steps
+  COMPLETED:             9,  // payslips sent to workers
+  FAILED:                0,
 }
 
 const PIPELINE = [
   { label: 'Timesheet\nReceived',  minRank: 1 },
   { label: 'Data\nProcessed',      minRank: 4 },
-  { label: 'Files\nDelivered',     minRank: 5 },
+  { label: 'Invoice\nGenerated',   minRank: 5 },
   { label: 'Invoice\nSent',        minRank: 6 },
   { label: 'Payment\nReceived',    minRank: 7 },
+  { label: 'Payslips\nSent',       minRank: 9 },
 ]
 
 interface WorkflowPageProps {
@@ -136,7 +137,7 @@ export default async function WorkflowPage({ searchParams }: WorkflowPageProps) 
           <CardContent className="p-0">
             {/* Header row */}
             <div className="grid items-center border-b bg-muted px-4 py-2 text-xs font-semibold text-muted-foreground"
-              style={{ gridTemplateColumns: '1fr 1fr repeat(5, 1fr) auto' }}>
+              style={{ gridTemplateColumns: '1fr 1fr repeat(6, 1fr) auto' }}>
               <span>Period</span>
               <span>Workers</span>
               {PIPELINE.map(s => (
@@ -163,20 +164,25 @@ export default async function WorkflowPage({ searchParams }: WorkflowPageProps) 
                   i.paymentStatus === 'PAID' || i.paymentStatus === 'PARTIAL'
                 )
 
-                // Cap maxRank at real-world evidence:
-                //  - Invoice Sent (rank 6) requires an invoice to actually exist
-                //  - Payment Received (rank 7) requires at least one paid/partial invoice
-                const maxRank = hasInvoice
-                  ? (hasPaid ? rawMaxRank : Math.min(rawMaxRank, 6))
-                  : Math.min(rawMaxRank, 5)
+                // Gate pipeline steps on real data:
+                //  rank 5 (Invoice Generated): requires invoice in DB
+                //  rank 6 (Invoice Sent): requires invoice emailed (workflowState >= INVOICE_SENT)
+                //  rank 7 (Payment Received): requires paid invoice
+                //  rank 9 (Payslips Sent): requires paid + workflowState COMPLETED
+                const maxRank = (() => {
+                  if (isFailed)    return 0
+                  if (!hasInvoice) return Math.min(rawMaxRank, 4)
+                  if (!hasPaid)    return Math.min(rawMaxRank, 6)
+                  return rawMaxRank
+                })()
 
-                // Complete only if genuinely paid — not just COMPLETED from an early skip
-                const isComplete   = hasPaid && !isFailed
+                // Row is fully complete only when payslips have been sent after payment
+                const isComplete = hasPaid && maxRank >= 9 && !isFailed
 
 
                 return (
                   <div key={week} className={`grid items-center px-4 py-3 hover:bg-muted/40 transition-colors ${isComplete ? 'bg-green-50/40 dark:bg-green-950/10' : ''}`}
-                    style={{ gridTemplateColumns: '1fr 1fr repeat(5, 1fr) auto' }}>
+                    style={{ gridTemplateColumns: '1fr 1fr repeat(6, 1fr) auto' }}>
 
                     {/* Period label */}
                     <div>
