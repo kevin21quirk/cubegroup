@@ -82,7 +82,21 @@ export async function getSession(): Promise<User | null> {
   }
 
   try {
-    return JSON.parse(userCookie.value) as User
+    const user = JSON.parse(userCookie.value) as User
+
+    // For STAFF users always re-fetch company assignments from DB so that:
+    //  1. Admin changes take effect without the staff member re-logging in
+    //  2. The cookie can never be stale or spoofed with extra company IDs
+    if (user.role === 'STAFF' && user.id) {
+      const dbUser = await prisma.user.findUnique({
+        where:  { id: user.id },
+        select: { isActive: true, staffCompanies: { select: { id: true } } },
+      })
+      if (!dbUser || !dbUser.isActive) return null
+      user.assignedCompanyIds = dbUser.staffCompanies.map(c => c.id)
+    }
+
+    return user
   } catch {
     return null
   }

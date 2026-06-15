@@ -57,7 +57,7 @@ export async function getInvoices() {
   const session = await getSession()
   const isStaff = session?.role === 'STAFF'
   const assignedIds = session?.assignedCompanyIds ?? []
-  const companyFilter = isStaff && assignedIds.length > 0 ? { companyId: { in: assignedIds } } : {}
+  const companyFilter = isStaff ? { companyId: { in: assignedIds } } : {}
 
   return await prisma.invoice.findMany({
     where: companyFilter,

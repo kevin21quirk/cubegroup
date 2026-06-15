@@ -10,7 +10,7 @@ export async function WorkflowQueue() {
   const session = await getSession()
   const isStaff = session?.role === 'STAFF'
   const assignedIds = session?.assignedCompanyIds ?? []
-  const companyFilter = isStaff && assignedIds.length > 0 ? { companyId: { in: assignedIds } } : {}
+  const companyFilter = isStaff ? { companyId: { in: assignedIds } } : {}
 
   const rawStats = await prisma.payrollSubmission.groupBy({
     by: ['workflowState'],

@@ -55,9 +55,7 @@ export default async function WorkflowPage({ searchParams }: WorkflowPageProps) 
   const allCompanies = await prisma.company.findMany({
     where: isSuperAdmin
       ? { isActive: true }
-      : session.assignedCompanyIds.length > 0
-        ? { id: { in: session.assignedCompanyIds }, isActive: true }
-        : { isActive: true },
+      : { id: { in: session.assignedCompanyIds }, isActive: true },
     orderBy: { name: 'asc' },
     select: { id: true, name: true },
   })

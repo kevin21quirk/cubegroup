@@ -11,8 +11,8 @@ export async function DashboardStats() {
   const session = await getSession()
   const isStaff = session?.role === 'STAFF'
   const assignedIds = session?.assignedCompanyIds ?? []
-  const subFilter  = isStaff && assignedIds.length > 0 ? { companyId: { in: assignedIds } } : {}
-  const invFilter  = isStaff && assignedIds.length > 0 ? { companyId: { in: assignedIds } } : {}
+  const subFilter  = isStaff ? { companyId: { in: assignedIds } } : {}
+  const invFilter  = isStaff ? { companyId: { in: assignedIds } } : {}
 
   const [totalSubmissions, pendingValidation, awaitingPayment, unpaidAggregate] = await Promise.all([
     prisma.payrollSubmission.count({ where: subFilter }),

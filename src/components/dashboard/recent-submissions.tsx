@@ -12,7 +12,7 @@ export async function RecentSubmissions() {
   const session = await getSession()
   const isStaff = session?.role === 'STAFF'
   const assignedIds = session?.assignedCompanyIds ?? []
-  const companyFilter = isStaff && assignedIds.length > 0 ? { companyId: { in: assignedIds } } : {}
+  const companyFilter = isStaff ? { companyId: { in: assignedIds } } : {}
 
   const submissions = await prisma.payrollSubmission.findMany({
     where: companyFilter,

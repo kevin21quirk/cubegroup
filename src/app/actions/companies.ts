@@ -76,7 +76,7 @@ export async function getCompanies() {
 
   return await prisma.company.findMany({
     orderBy: { createdAt: 'desc' },
-    where: isStaff && assignedIds.length > 0 ? { id: { in: assignedIds } } : undefined,
+    where: isStaff ? { id: { in: assignedIds } } : undefined,
     select: {
       id: true,
       name: true,
