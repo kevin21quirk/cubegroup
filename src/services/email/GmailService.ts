@@ -58,9 +58,7 @@ export class GmailService {
       scope: [
         'openid',
         'https://www.googleapis.com/auth/userinfo.email',
-        'https://www.googleapis.com/auth/gmail.readonly',
-        'https://www.googleapis.com/auth/gmail.modify',   // needed to apply labels
-        'https://www.googleapis.com/auth/gmail.labels',
+        'https://mail.google.com/',                        // full Gmail access — matches consent screen config
       ],
     })
   }
