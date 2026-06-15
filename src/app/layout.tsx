@@ -14,6 +14,9 @@ export const metadata: Metadata = {
     shortcut: '/cubegroupfav.png',
     apple: '/cubegroupfav.png',
   },
+  ...(process.env.GOOGLE_SITE_VERIFICATION && {
+    verification: { google: process.env.GOOGLE_SITE_VERIFICATION },
+  }),
 }
 
 export default function RootLayout({
