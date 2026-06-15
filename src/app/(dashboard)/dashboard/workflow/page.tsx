@@ -145,19 +145,13 @@ export default async function WorkflowPage({ searchParams }: WorkflowPageProps) 
             <div className="divide-y">
               {weeks.map(([week, subs]) => {
                 // Use the highest-ranked submission for this week's state
-                const maxRank = Math.max(...subs.map(s => STATE_RANK[s.workflowState] ?? 0))
-                const workers = subs.reduce((n, s) => n + (s as any)._count?.payrollEntries ?? 0, 0)
+                const maxRank     = Math.max(...subs.map(s => STATE_RANK[s.workflowState] ?? 0))
                 const allInvoices = subs.flatMap(s => s.invoices)
-                const anyInvoice  = allInvoices[0]
 
                 // Detect overall state of the week
                 const isComplete = maxRank >= STATE_RANK.PAYMENT_RECEIVED
                 const isFailed   = subs.some(s => s.workflowState === 'FAILED')
 
-                const totalInvoiced = allInvoices.reduce((s, i) => s + i.totalAmount, 0)
-                const totalPaid     = allInvoices.reduce((s, i) => s + (i.paidAmount ?? 0), 0)
-                const fullyPaid     = allInvoices.length > 0 && allInvoices.every(i => i.paymentStatus === 'PAID')
-                const partPaid      = !fullyPaid && allInvoices.some(i => i.paymentStatus === 'PARTIAL')
 
                 return (
                   <div key={week} className={`grid items-center px-4 py-3 hover:bg-muted/40 transition-colors ${isComplete ? 'bg-green-50/40 dark:bg-green-950/10' : ''}`}
@@ -171,7 +165,7 @@ export default async function WorkflowPage({ searchParams }: WorkflowPageProps) 
 
                     {/* Worker count */}
                     <div className="text-sm text-muted-foreground">
-                      {subs.reduce((n, s) => n + ((s as any)._count?.payrollEntries ?? 0), 0)} workers
+                      {subs.reduce((n, s) => n + (((s as any)._count?.payrollEntries) ?? 0), 0)} workers
                     </div>
 
                     {/* Pipeline step dots */}
