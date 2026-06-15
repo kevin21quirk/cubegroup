@@ -4,13 +4,14 @@ import { Button } from '@/components/ui/button'
 import { ArrowLeft, Building2, Calendar, Receipt, FileText } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getInvoice, deleteInvoice, emailInvoice, markInvoicePaidAndSendUmbrella } from '@/app/actions/invoices'
+import { getInvoice, deleteInvoice, emailInvoice, markInvoicePaidAndSendUmbrella, sendUmbrellaCSV } from '@/app/actions/invoices'
 import { recordPayment, deletePayment } from '@/app/actions/payments'
 import { DeleteButton } from '@/components/ui/delete-button'
 import { LocalTime } from '@/components/ui/local-time'
 import { formatCurrency } from '@/lib/utils'
 import { EmailInvoiceButton } from '@/components/invoices/EmailInvoiceButton'
 import { InvoicePaidButton } from '@/components/invoices/InvoicePaidButton'
+import { SendUmbrellaCSVButton } from '@/components/invoices/SendUmbrellaCSVButton'
 import { PartialPaymentSection } from '@/components/invoices/PartialPaymentSection'
 
 export const dynamic = 'force-dynamic'
@@ -30,9 +31,10 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   const umbrellaName  = (invoice.payrollSubmission as any)?.company?.umbrellaCompany?.name
     ?? entries.find((e: any) => e.umbrellaCompany)?.umbrellaCompany?.name
     ?? null
-  const umbrellaCsvSent = [
-    'UMBRELLA_INVOICE_SENT', 'COMPLETED', 'PAYMENT_RECEIVED'
-  ].includes((invoice.payrollSubmission as any)?.workflowState ?? '')
+  // CSV is only confirmed sent when workflowState reaches UMBRELLA_INVOICE_SENT specifically
+  const workflowState   = (invoice.payrollSubmission as any)?.workflowState ?? ''
+  const umbrellaCsvSent = workflowState === 'UMBRELLA_INVOICE_SENT'
+  const csvReadyToSend  = isPaid && !umbrellaCsvSent && invoice.payrollSubmissionId
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
@@ -181,6 +183,12 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
       <div className="flex items-center gap-3 flex-wrap">
         {!isPaid && (
           <InvoicePaidButton action={markInvoicePaidAndSendUmbrella.bind(null, id)} />
+        )}
+        {csvReadyToSend && (
+          <SendUmbrellaCSVButton
+            action={sendUmbrellaCSV.bind(null, id)}
+            umbrellaName={umbrellaName}
+          />
         )}
         <EmailInvoiceButton action={emailInvoice.bind(null, id)} invoiceEmail={(invoice.company as any)?.invoiceEmail ?? null} />
         {invoice.payrollSubmission && (

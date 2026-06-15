@@ -211,12 +211,12 @@ export async function markInvoiceAsPaid(id: string) {
 
 export async function markInvoicePaidAndSendUmbrella(
   id: string
-): Promise<{ success: boolean; umbrellaSent: number; umbrellaErrors: string[]; error?: string }> {
+): Promise<{ success: boolean; error?: string }> {
   const invoice = await prisma.invoice.findUnique({
     where: { id },
     include: { payments: true },
   })
-  if (!invoice) return { success: false, umbrellaSent: 0, umbrellaErrors: [], error: 'Invoice not found' }
+  if (!invoice) return { success: false, error: 'Invoice not found' }
 
   // 1. Create a Payment record for any outstanding balance
   const alreadyPaid = invoice.payments.reduce((s, p) => s + p.amount, 0)
@@ -239,7 +239,7 @@ export async function markInvoicePaidAndSendUmbrella(
     data: { paymentStatus: 'PAID', paidAt: new Date(), paidAmount: invoice.totalAmount },
   })
 
-  // 2. Update workflow state to PAYMENT_RECEIVED
+  // 3. Advance workflow state to PAYMENT_RECEIVED
   if (invoice.payrollSubmissionId) {
     await prisma.payrollSubmission.update({
       where: { id: invoice.payrollSubmissionId },
@@ -247,32 +247,49 @@ export async function markInvoicePaidAndSendUmbrella(
     })
   }
 
-  // 3. Send payroll CSV to umbrella company
-  let umbrellaSent = 0
-  let umbrellaErrors: string[] = []
+  revalidatePath('/dashboard/invoices')
+  revalidatePath(`/dashboard/invoices/${id}`)
+  revalidatePath('/dashboard/workflow')
 
-  if (invoice.payrollSubmissionId) {
-    try {
-      const svc = new UmbrellaPayrollService()
-      const result = await svc.sendPayrollCsvForSubmission(invoice.payrollSubmissionId)
-      umbrellaSent = result.sent
-      umbrellaErrors = result.errors
+  return { success: true }
+}
 
-      // 4. Advance workflow to UMBRELLA_INVOICE_SENT if at least one was sent
-      if (result.sent > 0) {
-        await prisma.payrollSubmission.update({
-          where: { id: invoice.payrollSubmissionId },
-          data: { workflowState: 'UMBRELLA_INVOICE_SENT' },
-        })
-      }
-    } catch (err: any) {
-      umbrellaErrors = [err?.message ?? 'Failed to send umbrella CSV']
+export async function sendUmbrellaCSV(
+  id: string
+): Promise<{ success: boolean; sent: number; errors: string[]; error?: string }> {
+  const invoice = await prisma.invoice.findUnique({
+    where: { id },
+    select: { payrollSubmissionId: true, paymentStatus: true },
+  })
+  if (!invoice) return { success: false, sent: 0, errors: [], error: 'Invoice not found' }
+  if (invoice.paymentStatus !== 'PAID') {
+    return { success: false, sent: 0, errors: [], error: 'Invoice must be fully paid before sending CSV' }
+  }
+  if (!invoice.payrollSubmissionId) {
+    return { success: false, sent: 0, errors: [], error: 'No payroll submission linked to this invoice' }
+  }
+
+  let sent = 0
+  let errors: string[] = []
+  try {
+    const svc    = new UmbrellaPayrollService()
+    const result = await svc.sendPayrollCsvForSubmission(invoice.payrollSubmissionId)
+    sent   = result.sent
+    errors = result.errors
+
+    if (result.sent > 0) {
+      await prisma.payrollSubmission.update({
+        where: { id: invoice.payrollSubmissionId },
+        data:  { workflowState: 'UMBRELLA_INVOICE_SENT' },
+      })
     }
+  } catch (err: any) {
+    errors = [err?.message ?? 'Failed to send umbrella CSV']
   }
 
   revalidatePath('/dashboard/invoices')
   revalidatePath(`/dashboard/invoices/${id}`)
   revalidatePath('/dashboard/workflow')
 
-  return { success: true, umbrellaSent, umbrellaErrors }
+  return { success: true, sent, errors }
 }
