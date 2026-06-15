@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { CheckCircle, XCircle, Info, Database, Mail, Brain, Server, HardDrive, Shield, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
+import { GmailDiagnostics } from '@/components/settings/GmailDiagnostics'
 
 export const dynamic = 'force-dynamic'
 
@@ -212,22 +213,15 @@ export default async function SettingsPage({ searchParams }: Props) {
               </div>
             </div>
 
-            {/* Connect / Reconnect button */}
-            <div className="mt-4 pt-4 border-t flex items-center gap-3">
+            {/* Connect / Reconnect + diagnostics */}
+            <div className="mt-4 flex items-center gap-3 flex-wrap">
               {gmailOAuthReady ? (
-                <>
-                  <Link href="/api/auth/google">
-                    <Button variant={gmailConnected ? 'outline' : 'default'} size="sm">
-                      <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
-                      {gmailConnected ? 'Reconnect Gmail' : 'Connect Gmail Account'}
-                    </Button>
-                  </Link>
-                  {gmailConnected && (
-                    <p className="text-xs text-muted-foreground">
-                      Refresh token stored in database. The cron job polls every 5 minutes automatically.
-                    </p>
-                  )}
-                </>
+                <Link href="/api/auth/google">
+                  <Button variant={gmailConnected ? 'outline' : 'default'} size="sm">
+                    <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                    {gmailConnected ? 'Reconnect Gmail' : 'Connect Gmail Account'}
+                  </Button>
+                </Link>
               ) : (
                 <p className="text-sm text-yellow-700">
                   Set <code className="font-mono text-xs">GOOGLE_CLIENT_ID</code> and{' '}
@@ -235,6 +229,7 @@ export default async function SettingsPage({ searchParams }: Props) {
                 </p>
               )}
             </div>
+            <GmailDiagnostics />
           </CardContent>
         </Card>
 
