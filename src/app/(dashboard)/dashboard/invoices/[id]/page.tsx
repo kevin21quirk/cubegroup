@@ -5,11 +5,13 @@ import { ArrowLeft, Building2, Calendar, Receipt, FileText } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getInvoice, deleteInvoice, emailInvoice, markInvoicePaidAndSendUmbrella } from '@/app/actions/invoices'
+import { recordPayment, deletePayment } from '@/app/actions/payments'
 import { DeleteButton } from '@/components/ui/delete-button'
 import { LocalTime } from '@/components/ui/local-time'
 import { formatCurrency } from '@/lib/utils'
 import { EmailInvoiceButton } from '@/components/invoices/EmailInvoiceButton'
 import { InvoicePaidButton } from '@/components/invoices/InvoicePaidButton'
+import { PartialPaymentSection } from '@/components/invoices/PartialPaymentSection'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,7 +20,9 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   const invoice = await getInvoice(id)
   if (!invoice) notFound()
 
-  const isPaid = invoice.paymentStatus === 'PAID'
+  const isPaid     = invoice.paymentStatus === 'PAID'
+  const isPartial   = invoice.paymentStatus === 'PARTIAL'
+  const paidAmount  = (invoice as any).paidAmount ?? invoice.payments?.reduce((s: number, p: any) => s + p.amount, 0) ?? 0
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
@@ -32,8 +36,11 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             {invoice.invoiceType === 'CLIENT_INVOICE' ? 'Client Invoice' : 'Umbrella Invoice'}
           </p>
         </div>
-        <Badge variant={isPaid ? 'default' : 'secondary'} className="text-sm px-3 py-1">
-          {isPaid ? 'Paid' : 'Unpaid'}
+        <Badge
+          variant={isPaid ? 'default' : isPartial ? 'secondary' : 'outline'}
+          className="text-sm px-3 py-1"
+        >
+          {isPaid ? 'Paid' : isPartial ? 'Part Paid' : 'Unpaid'}
         </Badge>
       </div>
 
@@ -138,6 +145,24 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           </div>
         </CardContent>
       </Card>
+
+      {/* Payment reconciliation */}
+      <PartialPaymentSection
+        invoiceId={id}
+        totalAmount={invoice.totalAmount}
+        paidAmount={paidAmount}
+        paymentStatus={invoice.paymentStatus}
+        payments={(invoice.payments ?? []).map((p: any) => ({
+          id: p.id,
+          amount: p.amount,
+          paymentDate: p.paymentDate,
+          paymentMethod: p.paymentMethod,
+          reference: p.reference,
+          notes: p.notes,
+        }))}
+        recordAction={recordPayment}
+        deleteAction={deletePayment}
+      />
 
       {/* Actions */}
       <div className="flex items-center gap-3 flex-wrap">

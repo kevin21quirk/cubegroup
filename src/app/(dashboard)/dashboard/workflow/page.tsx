@@ -1,116 +1,218 @@
-import { WorkflowVisualization, getDefaultWorkflowSteps } from '@/components/workflow/workflow-visualization'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { getPayrollSubmissions } from '@/app/actions/payroll'
-import { getInvoices } from '@/app/actions/invoices'
-import { getPayments } from '@/app/actions/payments'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { prisma } from '@/lib/prisma'
+import { getSession } from '@/lib/auth'
+import { CheckCircle2, Circle, Clock, Building2, ChevronRight } from 'lucide-react'
+import Link from 'next/link'
+import { redirect } from 'next/navigation'
 
-// Force dynamic rendering
 export const dynamic = 'force-dynamic'
 
+// Map workflowState to a numeric rank so we can compare progress
+const STATE_RANK: Record<string, number> = {
+  EMAIL_RECEIVED:        1,
+  ATTACHMENT_DOWNLOADED: 2,
+  AI_PROCESSING:         3,
+  SPREADSHEET_GENERATED: 4,
+  PAYSLIPS_SENT:         5,
+  INVOICE_GENERATED:     6,
+  PAYMENT_RECEIVED:      7,
+  UMBRELLA_INVOICE_SENT: 8,
+  COMPLETED:             9,
+  FAILED:               10,
+}
+
+const PIPELINE = [
+  { label: 'Timesheet\nReceived',  minRank: 1 },
+  { label: 'Data\nProcessed',      minRank: 4 },
+  { label: 'Payslips\nSent',       minRank: 5 },
+  { label: 'Invoice\nGenerated',   minRank: 6 },
+  { label: 'Payment\nReceived',    minRank: 7 },
+]
+
 interface WorkflowPageProps {
-  searchParams: { companyId?: string }
+  searchParams: Promise<{ companyId?: string }>
 }
 
 export default async function WorkflowPage({ searchParams }: WorkflowPageProps) {
-  const companyId = searchParams.companyId
+  const session = await getSession()
+  if (!session) redirect('/login')
 
-  // Get company if filtered
-  const company = companyId ? await prisma.company.findUnique({
-    where: { id: companyId },
-  }) : null
+  const sp = await searchParams
+  const isSuperAdmin = session.role === 'SUPER_ADMIN'
 
-  // Get workflow data (filtered by company if selected)
-  const [submissions, invoices, payments, emailImports] = await Promise.all([
-    getPayrollSubmissions(),
-    getInvoices(),
-    getPayments(),
-    prisma.emailImport.findMany({
-      where: companyId ? { payrollSubmission: { companyId } } : undefined,
-      orderBy: { createdAt: 'desc' },
-    }),
-  ])
+  // Determine which companies the user can see
+  const allCompanies = await prisma.company.findMany({
+    where: isSuperAdmin
+      ? { isActive: true }
+      : session.assignedCompanyIds.length > 0
+        ? { id: { in: session.assignedCompanyIds }, isActive: true }
+        : { isActive: true },
+    orderBy: { name: 'asc' },
+    select: { id: true, name: true },
+  })
 
-  // Filter by company if selected
-  const filteredSubmissions = companyId 
-    ? submissions.filter(s => s.company.id === companyId)
-    : submissions
+  // Determine the active company: use query param, or default to first
+  const activeCompanyId = sp.companyId ?? allCompanies[0]?.id
+  const activeCompany   = allCompanies.find(c => c.id === activeCompanyId) ?? allCompanies[0]
 
-  const filteredInvoices = companyId
-    ? invoices.filter(i => i.company?.id === companyId)
-    : invoices
+  // Fetch submissions for the active company with their linked invoices
+  const submissions = await prisma.payrollSubmission.findMany({
+    where: { companyId: activeCompany?.id },
+    orderBy: { createdAt: 'desc' },
+    take: 52, // last year of weekly periods
+    include: {
+      invoices: {
+        select: { id: true, paymentStatus: true, totalAmount: true, paidAmount: true },
+      },
+    },
+  })
 
-  // Calculate workflow step statuses
-  const steps = getDefaultWorkflowSteps()
+  // Group by payrollWeek
+  const byWeek = new Map<string, typeof submissions>()
+  for (const s of submissions) {
+    const week = s.payrollWeek || s.createdAt.toISOString().split('T')[0]
+    if (!byWeek.has(week)) byWeek.set(week, [])
+    byWeek.get(week)!.push(s)
+  }
 
-  // Email Received
-  steps[0].count = emailImports.length
-  steps[0].status = emailImports.length > 0 ? 'completed' : 'pending'
-
-  // Timesheet Processed
-  steps[1].count = filteredSubmissions.length
-  steps[1].status = filteredSubmissions.length > 0 ? 'completed' : 
-                    emailImports.length > 0 ? 'in_progress' : 'pending'
-
-  // Validation
-  const validated = filteredSubmissions.filter(s => 
-    s.workflowState !== 'EMAIL_RECEIVED' && 
-    s.workflowState !== 'ATTACHMENT_DOWNLOADED' && 
-    s.workflowState !== 'AI_PROCESSING'
-  )
-  steps[2].count = validated.length
-  steps[2].status = validated.length > 0 ? 'completed' :
-                    filteredSubmissions.length > 0 ? 'in_progress' : 'pending'
-
-  // Invoice Generated
-  steps[3].count = filteredInvoices.length
-  steps[3].status = filteredInvoices.length > 0 ? 'completed' :
-                    validated.length > 0 ? 'in_progress' : 'pending'
-
-  // Payment
-  const paidInvoices = filteredInvoices.filter(i => i.paymentStatus === 'PAID')
-  steps[4].count = paidInvoices.length
-  steps[4].status = paidInvoices.length > 0 ? 'completed' :
-                    filteredInvoices.length > 0 ? 'in_progress' : 'pending'
+  // Sort weeks descending
+  const weeks = [...byWeek.entries()].sort(([a], [b]) => b.localeCompare(a))
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">
-          {company ? `${company.name} - Workflow` : 'Workflow Overview'}
-        </h1>
-        <p className="text-muted-foreground">
-          Visual representation of the payroll processing workflow
-        </p>
+      <div className="flex items-start justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Payroll Workflow</h1>
+          <p className="text-muted-foreground text-sm">Period-by-period pipeline view</p>
+        </div>
+        {/* Company selector (all admins + multi-company staff) */}
+        {allCompanies.length > 1 && (
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-muted-foreground" />
+            <div className="flex gap-2 flex-wrap">
+              {allCompanies.map(c => (
+                <Link
+                  key={c.id}
+                  href={`/dashboard/workflow?companyId=${c.id}`}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium border transition-colors ${
+                    c.id === activeCompany?.id
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background hover:bg-muted border-border'
+                  }`}
+                >
+                  {c.name}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      <WorkflowVisualization 
-        companyName={company?.name}
-        steps={steps}
-      />
+      {!activeCompany ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            No companies found. Please contact your administrator.
+          </CardContent>
+        </Card>
+      ) : weeks.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            <Clock className="mx-auto h-10 w-10 mb-3 opacity-40" />
+            <p className="font-medium">No payroll periods yet for {activeCompany.name}</p>
+            <p className="text-sm mt-1">Periods will appear here once timesheets are submitted.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">{activeCompany.name} — All Periods</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {/* Header row */}
+            <div className="grid items-center border-b bg-muted px-4 py-2 text-xs font-semibold text-muted-foreground"
+              style={{ gridTemplateColumns: '1fr 1fr repeat(5, 1fr) auto' }}>
+              <span>Period</span>
+              <span>Workers</span>
+              {PIPELINE.map(s => (
+                <span key={s.label} className="text-center whitespace-pre-line leading-tight">
+                  {s.label}
+                </span>
+              ))}
+              <span />
+            </div>
 
-      {/* Quick Stats */}
-      <div className="grid gap-4 md:grid-cols-5">
-        <div className="p-4 rounded-lg border bg-card">
-          <p className="text-sm text-muted-foreground">Emails</p>
-          <p className="text-2xl font-bold">{emailImports.length}</p>
-        </div>
-        <div className="p-4 rounded-lg border bg-card">
-          <p className="text-sm text-muted-foreground">Timesheets</p>
-          <p className="text-2xl font-bold">{filteredSubmissions.length}</p>
-        </div>
-        <div className="p-4 rounded-lg border bg-card">
-          <p className="text-sm text-muted-foreground">Validated</p>
-          <p className="text-2xl font-bold">{validated.length}</p>
-        </div>
-        <div className="p-4 rounded-lg border bg-card">
-          <p className="text-sm text-muted-foreground">Invoices</p>
-          <p className="text-2xl font-bold">{filteredInvoices.length}</p>
-        </div>
-        <div className="p-4 rounded-lg border bg-card">
-          <p className="text-sm text-muted-foreground">Paid</p>
-          <p className="text-2xl font-bold">{paidInvoices.length}</p>
-        </div>
+            <div className="divide-y">
+              {weeks.map(([week, subs]) => {
+                // Use the highest-ranked submission for this week's state
+                const maxRank = Math.max(...subs.map(s => STATE_RANK[s.workflowState] ?? 0))
+                const workers = subs.reduce((n, s) => n + (s as any)._count?.payrollEntries ?? 0, 0)
+                const allInvoices = subs.flatMap(s => s.invoices)
+                const anyInvoice  = allInvoices[0]
+
+                // Detect overall state of the week
+                const isComplete = maxRank >= STATE_RANK.PAYMENT_RECEIVED
+                const isFailed   = subs.some(s => s.workflowState === 'FAILED')
+
+                const totalInvoiced = allInvoices.reduce((s, i) => s + i.totalAmount, 0)
+                const totalPaid     = allInvoices.reduce((s, i) => s + (i.paidAmount ?? 0), 0)
+                const fullyPaid     = allInvoices.length > 0 && allInvoices.every(i => i.paymentStatus === 'PAID')
+                const partPaid      = !fullyPaid && allInvoices.some(i => i.paymentStatus === 'PARTIAL')
+
+                return (
+                  <div key={week} className={`grid items-center px-4 py-3 hover:bg-muted/40 transition-colors ${isComplete ? 'bg-green-50/40 dark:bg-green-950/10' : ''}`}
+                    style={{ gridTemplateColumns: '1fr 1fr repeat(5, 1fr) auto' }}>
+
+                    {/* Period label */}
+                    <div>
+                      <p className="text-sm font-medium">{week}</p>
+                      {isFailed && <Badge variant="destructive" className="text-xs mt-0.5">Failed</Badge>}
+                    </div>
+
+                    {/* Worker count */}
+                    <div className="text-sm text-muted-foreground">
+                      {subs.reduce((n, s) => n + ((s as any)._count?.payrollEntries ?? 0), 0)} workers
+                    </div>
+
+                    {/* Pipeline step dots */}
+                    {PIPELINE.map((step, idx) => {
+                      const done    = maxRank >= step.minRank
+                      const current = !done && maxRank >= (PIPELINE[idx - 1]?.minRank ?? 0)
+                      return (
+                        <div key={step.label} className="flex justify-center">
+                          {done ? (
+                            <CheckCircle2 className="h-5 w-5 text-green-600" />
+                          ) : current ? (
+                            <Clock className="h-5 w-5 text-blue-500 animate-pulse" />
+                          ) : (
+                            <Circle className="h-5 w-5 text-gray-300" />
+                          )}
+                        </div>
+                      )
+                    })}
+
+                    {/* Link to submission */}
+                    <div className="flex justify-end">
+                      {subs[0] && (
+                        <Link href={`/dashboard/payroll/${subs[0].id}`}
+                          className="text-muted-foreground hover:text-foreground transition-colors">
+                          <ChevronRight className="h-4 w-4" />
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Legend */}
+      <div className="flex gap-5 text-xs text-muted-foreground flex-wrap">
+        <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-green-600" /> Step complete</span>
+        <span className="flex items-center gap-1.5"><Clock className="h-4 w-4 text-blue-500" /> In progress</span>
+        <span className="flex items-center gap-1.5"><Circle className="h-4 w-4 text-gray-300" /> Not started</span>
       </div>
     </div>
   )
