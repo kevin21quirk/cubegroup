@@ -53,7 +53,7 @@ export function GmailDiagnostics() {
     setPolling(true)
     setPollResult(null)
     try {
-      const res  = await fetch('/api/cron/gmail')
+      const res  = await fetch('/api/gmail/poll')
       const data = await res.json()
       setPollResult(data)
     } catch (err: any) {
