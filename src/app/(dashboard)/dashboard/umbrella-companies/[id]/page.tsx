@@ -59,10 +59,6 @@ export default async function UmbrellaCompanyDetailPage({ params }: { params: Pr
                 <label htmlFor="contactPhone" className="text-sm font-medium">Phone</label>
                 <Input id="contactPhone" name="contactPhone" type="tel" defaultValue={company.contactPhone ?? ''} />
               </div>
-              <div className="space-y-1.5">
-                <label htmlFor="processingFee" className="text-sm font-medium">Processing Fee (£/worker)</label>
-                <Input id="processingFee" name="processingFee" type="number" step="0.01" min="0" defaultValue={company.processingFee} />
-              </div>
               <div className="sm:col-span-2 space-y-1.5">
                 <label htmlFor="address" className="text-sm font-medium">Address</label>
                 <Input id="address" name="address" defaultValue={company.address ?? ''} />

@@ -61,9 +61,6 @@ export default async function UmbrellaCompaniesPage() {
                     <Users className="h-3.5 w-3.5 shrink-0" />
                     <span>{company._count.payrollEntries} payroll entries</span>
                   </div>
-                  {company.processingFee > 0 && (
-                    <p className="text-xs">Processing fee: £{company.processingFee.toFixed(2)}/worker</p>
-                  )}
                 </CardContent>
               </Card>
             </Link>

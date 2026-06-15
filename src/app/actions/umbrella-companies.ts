@@ -25,7 +25,6 @@ export async function createUmbrellaCompany(formData: FormData) {
   const address      = formData.get('address') as string | null
   const city         = formData.get('city') as string | null
   const postcode     = formData.get('postcode') as string | null
-  const processingFee = parseFloat((formData.get('processingFee') as string) || '0')
 
   if (!name || !contactEmail) throw new Error('Name and contact email are required')
 
@@ -37,7 +36,6 @@ export async function createUmbrellaCompany(formData: FormData) {
       address:      address      || undefined,
       city:         city         || undefined,
       postcode:     postcode     || undefined,
-      processingFee,
       isActive: true,
     },
   })
@@ -53,7 +51,6 @@ export async function updateUmbrellaCompany(id: string, formData: FormData) {
   const address      = formData.get('address') as string | null
   const city         = formData.get('city') as string | null
   const postcode     = formData.get('postcode') as string | null
-  const processingFee = parseFloat((formData.get('processingFee') as string) || '0')
   const isActive     = formData.get('isActive') === 'true'
 
   await prisma.umbrellaCompany.update({
@@ -65,7 +62,6 @@ export async function updateUmbrellaCompany(id: string, formData: FormData) {
       address:      address      || null,
       city:         city         || null,
       postcode:     postcode     || null,
-      processingFee,
       isActive,
     },
   })

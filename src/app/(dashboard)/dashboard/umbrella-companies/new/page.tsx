@@ -32,10 +32,6 @@ export default function NewUmbrellaCompanyPage() {
                 <label htmlFor="contactPhone" className="text-sm font-medium">Phone</label>
                 <Input id="contactPhone" name="contactPhone" type="tel" placeholder="+44 20 1234 5678" />
               </div>
-              <div className="space-y-1.5">
-                <label htmlFor="processingFee" className="text-sm font-medium">Processing Fee (£/worker)</label>
-                <Input id="processingFee" name="processingFee" type="number" step="0.01" min="0" defaultValue="0" />
-              </div>
               <div className="sm:col-span-2 space-y-1.5">
                 <label htmlFor="address" className="text-sm font-medium">Address</label>
                 <Input id="address" name="address" placeholder="123 Example Street" />
