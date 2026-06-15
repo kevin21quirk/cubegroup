@@ -60,9 +60,11 @@ export async function getInvoice(id: string) {
       company: true,
       payrollSubmission: {
         include: {
+          company: { include: { umbrellaCompany: true } },
           payrollEntries: {
             include: {
               worker: true,
+              umbrellaCompany: true,
             },
           },
         },
@@ -212,14 +214,29 @@ export async function markInvoicePaidAndSendUmbrella(
 ): Promise<{ success: boolean; umbrellaSent: number; umbrellaErrors: string[]; error?: string }> {
   const invoice = await prisma.invoice.findUnique({
     where: { id },
-    select: { payrollSubmissionId: true, invoiceNumber: true },
+    include: { payments: true },
   })
   if (!invoice) return { success: false, umbrellaSent: 0, umbrellaErrors: [], error: 'Invoice not found' }
 
-  // 1. Mark invoice as paid
+  // 1. Create a Payment record for any outstanding balance
+  const alreadyPaid = invoice.payments.reduce((s, p) => s + p.amount, 0)
+  const remaining   = invoice.totalAmount - alreadyPaid
+  if (remaining > 0.005) {
+    await prisma.payment.create({
+      data: {
+        invoiceId:     id,
+        amount:        parseFloat(remaining.toFixed(2)),
+        paymentDate:   new Date(),
+        paymentMethod: 'Invoice Paid',
+        notes:         'Marked as fully paid via Invoice Paid button',
+      },
+    })
+  }
+
+  // 2. Mark invoice as paid with correct paidAmount
   await prisma.invoice.update({
     where: { id },
-    data: { paymentStatus: 'PAID', paidAt: new Date() },
+    data: { paymentStatus: 'PAID', paidAt: new Date(), paidAmount: invoice.totalAmount },
   })
 
   // 2. Update workflow state to PAYMENT_RECEIVED

@@ -20,9 +20,19 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   const invoice = await getInvoice(id)
   if (!invoice) notFound()
 
-  const isPaid     = invoice.paymentStatus === 'PAID'
-  const isPartial   = invoice.paymentStatus === 'PARTIAL'
-  const paidAmount  = (invoice as any).paidAmount ?? invoice.payments?.reduce((s: number, p: any) => s + p.amount, 0) ?? 0
+  const isPaid    = invoice.paymentStatus === 'PAID'
+  const isPartial  = invoice.paymentStatus === 'PARTIAL'
+  const paidAmount = (invoice as any).paidAmount ?? 0
+
+  // Compute payroll company (umbrella) totals from payroll entries
+  const entries = (invoice.payrollSubmission as any)?.payrollEntries ?? []
+  const umbrellaTotal = entries.reduce((s: number, e: any) => s + (e.umbrellaShareAmount ?? 0), 0)
+  const umbrellaName  = (invoice.payrollSubmission as any)?.company?.umbrellaCompany?.name
+    ?? entries.find((e: any) => e.umbrellaCompany)?.umbrellaCompany?.name
+    ?? null
+  const umbrellaCsvSent = [
+    'UMBRELLA_INVOICE_SENT', 'COMPLETED', 'PAYMENT_RECEIVED'
+  ].includes((invoice.payrollSubmission as any)?.workflowState ?? '')
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
@@ -162,6 +172,9 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         }))}
         recordAction={recordPayment}
         deleteAction={deletePayment}
+        umbrellaTotal={umbrellaTotal}
+        umbrellaName={umbrellaName}
+        umbrellaCsvSent={umbrellaCsvSent}
       />
 
       {/* Actions */}
