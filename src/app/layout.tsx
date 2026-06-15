@@ -9,6 +9,11 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'Cube Group - Payroll Automation Platform',
   description: 'Multi-tenant payroll workflow automation platform developed by AI Bridge Solutions',
+  icons: {
+    icon: '/cubegroupfav.png',
+    shortcut: '/cubegroupfav.png',
+    apple: '/cubegroupfav.png',
+  },
 }
 
 export default function RootLayout({
