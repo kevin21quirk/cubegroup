@@ -8,25 +8,29 @@ import { redirect } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
 
-// Map workflowState to a numeric rank so we can compare progress
+// Map actual WorkflowState enum values to a numeric rank for pipeline display
 const STATE_RANK: Record<string, number> = {
   EMAIL_RECEIVED:        1,
   ATTACHMENT_DOWNLOADED: 2,
   AI_PROCESSING:         3,
+  VALIDATION_FAILED:     3,  // still in processing phase
+  AWAITING_REVIEW:       3,  // still in processing phase
   SPREADSHEET_GENERATED: 4,
-  PAYSLIPS_SENT:         5,
-  INVOICE_GENERATED:     6,
+  SAVED_TO_SERVER:       5,  // files delivered to server
+  READY_FOR_INVOICE:     5,  // same display stage
+  INVOICE_SENT:          6,  // invoice generated & sent
+  AWAITING_PAYMENT:      6,  // same display stage
   PAYMENT_RECEIVED:      7,
   UMBRELLA_INVOICE_SENT: 8,
   COMPLETED:             9,
-  FAILED:               10,
+  FAILED:                0,  // treated separately — never ticks pipeline steps
 }
 
 const PIPELINE = [
   { label: 'Timesheet\nReceived',  minRank: 1 },
   { label: 'Data\nProcessed',      minRank: 4 },
-  { label: 'Payslips\nSent',       minRank: 5 },
-  { label: 'Invoice\nGenerated',   minRank: 6 },
+  { label: 'Files\nDelivered',     minRank: 5 },
+  { label: 'Invoice\nSent',        minRank: 6 },
   { label: 'Payment\nReceived',    minRank: 7 },
 ]
 
@@ -65,6 +69,7 @@ export default async function WorkflowPage({ searchParams }: WorkflowPageProps) 
       invoices: {
         select: { id: true, paymentStatus: true, totalAmount: true, paidAmount: true },
       },
+      _count: { select: { payrollEntries: true } },
     },
   })
 
@@ -144,13 +149,18 @@ export default async function WorkflowPage({ searchParams }: WorkflowPageProps) 
 
             <div className="divide-y">
               {weeks.map(([week, subs]) => {
-                // Use the highest-ranked submission for this week's state
-                const maxRank     = Math.max(...subs.map(s => STATE_RANK[s.workflowState] ?? 0))
+                // Use the highest-ranked non-failed submission state
+                const isFailed    = subs.every(s => s.workflowState === 'FAILED')
+                const maxRank     = isFailed ? 0 : Math.max(
+                  ...subs
+                    .filter(s => s.workflowState !== 'FAILED')
+                    .map(s => STATE_RANK[s.workflowState] ?? 0),
+                  0
+                )
                 const allInvoices = subs.flatMap(s => s.invoices)
 
-                // Detect overall state of the week
-                const isComplete = maxRank >= STATE_RANK.PAYMENT_RECEIVED
-                const isFailed   = subs.some(s => s.workflowState === 'FAILED')
+                // Complete only if genuinely at/past payment — not just COMPLETED from an early skip
+                const isComplete  = maxRank >= STATE_RANK.PAYMENT_RECEIVED && !isFailed
 
 
                 return (
@@ -165,7 +175,7 @@ export default async function WorkflowPage({ searchParams }: WorkflowPageProps) 
 
                     {/* Worker count */}
                     <div className="text-sm text-muted-foreground">
-                      {subs.reduce((n, s) => n + (((s as any)._count?.payrollEntries) ?? 0), 0)} workers
+                      {subs.reduce((n, s) => n + (s._count?.payrollEntries ?? 0), 0)} workers
                     </div>
 
                     {/* Pipeline step dots */}
