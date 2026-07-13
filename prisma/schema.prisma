@@ -334,6 +334,7 @@ model PayrollSubmission {
   payrollWeekStart  DateTime?
   payrollWeekEnd    DateTime?
   workflowState     WorkflowState   @default(EMAIL_RECEIVED)
+  feeSource         String          @default("COMPANY")  // COMPANY | WORKER
   totalHours        Float           @default(0)
   totalGrossPay     Float           @default(0)
   totalCubeFees     Float           @default(0)

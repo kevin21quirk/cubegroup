@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Building2, Calendar, Receipt, FileText } from 'lucide-react'
+import { ArrowLeft, Building2, Calendar, Receipt, FileText, Download } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getInvoice, deleteInvoice, emailInvoice, markInvoicePaidAndSendUmbrella, sendUmbrellaCSV } from '@/app/actions/invoices'
@@ -198,6 +198,14 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
               View Payroll Submission
             </Button>
           </Link>
+        )}
+        {isPaid && invoice.payrollSubmissionId && (
+          <a href={`/api/payroll/${invoice.payrollSubmissionId}/csv`} download>
+            <Button variant="outline">
+              <Download className="mr-2 h-4 w-4" />
+              Download Payroll CSV
+            </Button>
+          </a>
         )}
         <DeleteButton
           action={deleteInvoice.bind(null, id)}

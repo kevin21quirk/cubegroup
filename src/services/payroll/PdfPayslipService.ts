@@ -80,6 +80,7 @@ export interface PdfPayslipData {
   taxRate: number
   taxAmount: number
   feeAmount: number
+  feeSource?: string | null
   expenseAmount?: number | null
   netToWorker: number
   hoursWorked?: number | null
@@ -225,18 +226,26 @@ export async function generatePayslipPdf(data: PdfPayslipData): Promise<Buffer> 
   tr(grossStr, c3X + c3W - 6, payRowY, 8.5, fontBold)
 
   // ── 7. Right: Deductions ───────────────────────────────────────────
-  const dedTopY = payRowY + 18
-  const totalDed = (data.feeAmount ?? 0) + data.taxAmount
+  const showFee  = data.feeSource === 'WORKER' && (data.feeAmount ?? 0) > 0
+  const dedTopY  = payRowY + 18
+  const totalDed = (showFee ? (data.feeAmount ?? 0) : 0) + data.taxAmount
 
   hl(c3X + 1, dedTopY, c3X + c3W - 1)
   tc('Deductions', c3X, c3W, dedTopY + 6, 9.5, fontBold)
   hl(c3X + 1, dedTopY + 20, c3X + c3W - 1)
-  t('Fees',             c3X + 6, dedTopY + 26, 8.5)
-  tr((data.feeAmount ?? 0).toFixed(2), c3X + c3W - 6, dedTopY + 26, 8.5)
-  t('CIS Deduction',   c3X + 6, dedTopY + 40, 8.5)
-  tr(data.taxAmount.toFixed(2), c3X + c3W - 6, dedTopY + 40, 8.5)
-  t('Total Deductions', c3X + 6, dedTopY + 54, 8.5, fontBold)
-  tr(totalDed.toFixed(2), c3X + c3W - 6, dedTopY + 54, 8.5, fontBold)
+  if (showFee) {
+    t('Fees',           c3X + 6, dedTopY + 26, 8.5)
+    tr((data.feeAmount ?? 0).toFixed(2), c3X + c3W - 6, dedTopY + 26, 8.5)
+    t('CIS Deduction',  c3X + 6, dedTopY + 40, 8.5)
+    tr(data.taxAmount.toFixed(2), c3X + c3W - 6, dedTopY + 40, 8.5)
+    t('Total Deductions', c3X + 6, dedTopY + 54, 8.5, fontBold)
+    tr(totalDed.toFixed(2), c3X + c3W - 6, dedTopY + 54, 8.5, fontBold)
+  } else {
+    t('CIS Deduction',  c3X + 6, dedTopY + 26, 8.5)
+    tr(data.taxAmount.toFixed(2), c3X + c3W - 6, dedTopY + 26, 8.5)
+    t('Total Deductions', c3X + 6, dedTopY + 40, 8.5, fontBold)
+    tr(totalDed.toFixed(2), c3X + c3W - 6, dedTopY + 40, 8.5, fontBold)
+  }
 
   // ── 8. Footer ──────────────────────────────────────────────────────
   // Right (Net Payment): WHITE fill, GREEN border, rounded

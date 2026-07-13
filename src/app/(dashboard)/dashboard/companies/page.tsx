@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Plus, Building2, Users, FileText, Mail, Phone, MapPin, Edit } from 'lucide-react'
 import Link from 'next/link'
 import { getCompanies, deleteCompany } from '@/app/actions/companies'
+import { getSession } from '@/lib/auth'
 import { formatDate } from '@/lib/utils'
 import ImportDialog from '@/components/import/ImportDialog'
 import { DeleteButton } from '@/components/ui/delete-button'
@@ -12,6 +13,8 @@ import { DeleteButton } from '@/components/ui/delete-button'
 export const dynamic = 'force-dynamic'
 
 export default async function CompaniesPage() {
+  const session = await getSession()
+  const isStaff = session?.role === 'STAFF'
   const companies = await getCompanies()
 
   return (
@@ -23,15 +26,17 @@ export default async function CompaniesPage() {
             Manage your client companies and their details
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <ImportDialog entity="companies" />
-          <Link href="/dashboard/companies/new">
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Company
-            </Button>
-          </Link>
-        </div>
+        {!isStaff && (
+          <div className="flex items-center gap-2">
+            <ImportDialog entity="companies" />
+            <Link href="/dashboard/companies/new">
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Company
+              </Button>
+            </Link>
+          </div>
+        )}
       </div>
 
       {companies.length === 0 ? (
@@ -45,12 +50,14 @@ export default async function CompaniesPage() {
               <Building2 className="mx-auto h-12 w-12 mb-4 opacity-50" />
               <p className="text-lg font-medium">No companies yet</p>
               <p className="text-sm mt-2">Add your first client company to get started</p>
-              <Link href="/dashboard/companies/new">
-                <Button className="mt-4" variant="outline">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Your First Company
-                </Button>
-              </Link>
+              {!isStaff && (
+                <Link href="/dashboard/companies/new">
+                  <Button className="mt-4" variant="outline">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Your First Company
+                  </Button>
+                </Link>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -71,19 +78,21 @@ export default async function CompaniesPage() {
                       </Badge>
                     </div>
                   </Link>
-                  <div className="flex items-center gap-1">
-                    <Link href={`/dashboard/companies/${company.id}/edit`}>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    </Link>
-                    <DeleteButton
-                      action={deleteCompany.bind(null, company.id)}
-                      label={company.name}
-                      description={`This will permanently delete ${company.name} and all associated workers, payroll submissions, and data. This cannot be undone.`}
-                      redirectTo="/dashboard/companies"
-                    />
-                  </div>
+                  {!isStaff && (
+                    <div className="flex items-center gap-1">
+                      <Link href={`/dashboard/companies/${company.id}/edit`}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                      <DeleteButton
+                        action={deleteCompany.bind(null, company.id)}
+                        label={company.name}
+                        description={`This will permanently delete ${company.name} and all associated workers, payroll submissions, and data. This cannot be undone.`}
+                        redirectTo="/dashboard/companies"
+                      />
+                    </div>
+                  )}
                 </div>
               </CardHeader>
                 <CardContent className="space-y-3">

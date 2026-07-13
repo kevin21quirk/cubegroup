@@ -13,6 +13,21 @@ export class UmbrellaPayrollService {
     this.mailer = new GmailSendService()
   }
 
+  async getCsvForDownload(payrollSubmissionId: string): Promise<{ filename: string; csv: string }> {
+    const submission = await prisma.payrollSubmission.findUnique({
+      where: { id: payrollSubmissionId },
+      include: {
+        company: true,
+        payrollEntries: { include: { worker: true } },
+      },
+    })
+    if (!submission) throw new Error('Payroll submission not found')
+
+    const csv = this.buildCsv(submission.payrollEntries, submission.company.name, submission.payrollWeek)
+    const filename = `Payroll_${submission.company.name.replace(/[^a-zA-Z0-9]/g, '_')}_${submission.payrollWeek}.csv`
+    return { filename, csv }
+  }
+
   async sendPayrollCsvForSubmission(payrollSubmissionId: string): Promise<{
     sent: number
     errors: string[]
