@@ -93,7 +93,7 @@ export default async function PayrollDetailPage({ params }: { params: Promise<{ 
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <PayrollReviewTable submissionId={id} entries={entries} />
+            <PayrollReviewTable submissionId={id} entries={entries} initialFeeSource={(s as any).feeSource ?? 'COMPANY'} />
           </CardContent>
         </Card>
       )}

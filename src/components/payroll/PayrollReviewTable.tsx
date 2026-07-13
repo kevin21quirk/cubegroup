@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { CheckCircle, Send, Save, Loader2, AlertCircle, Mail, MailX, RefreshCw, Receipt } from 'lucide-react'
-import { saveBulkEntryRates, approveAllEntries, sendPayslipsForSubmission, sendPayslipForEntry, generateInvoiceForSubmission } from '@/app/actions/payroll'
+import { saveBulkEntryRates, approveAllEntries, sendPayslipsForSubmission, sendPayslipForEntry, generateInvoiceForSubmission, updateSubmissionFeeSource } from '@/app/actions/payroll'
 import { useRouter } from 'next/navigation'
 
 interface Entry {
@@ -46,18 +46,20 @@ interface Rates {
 interface PayrollReviewTableProps {
   submissionId: string
   entries: Entry[]
+  initialFeeSource?: string
 }
 
 function fmt(n: number) { return `£${n.toFixed(2)}` }
 function pct(n: number) { return `${n.toFixed(1)}%` }
 
-function calc(gross: number, r: Rates) {
+function calc(gross: number, r: Rates, feeSource: string) {
   const tax      = parseFloat(((gross * r.taxRate) / 100).toFixed(2))
   const fee      = parseFloat(r.feeAmount.toFixed(2))
   const umbrella = parseFloat(((fee * r.umbrellaSharePct) / 100).toFixed(2))
   const broker   = parseFloat(((fee * r.brokerSharePct)   / 100).toFixed(2))
   const exp      = parseFloat((r.expenseAmount || 0).toFixed(2))
-  const net      = parseFloat((gross - tax - fee + exp).toFixed(2))
+  const workerFee = feeSource === 'WORKER' ? fee : 0
+  const net      = parseFloat((gross - tax - workerFee + exp).toFixed(2))
   return { tax, fee, umbrella, broker, exp, net }
 }
 
@@ -79,7 +81,7 @@ function NumInput({ value, onChange, min = 0, max = 100, step = 0.5, disabled = 
   )
 }
 
-export function PayrollReviewTable({ submissionId, entries: initial }: PayrollReviewTableProps) {
+export function PayrollReviewTable({ submissionId, entries: initial, initialFeeSource = 'COMPANY' }: PayrollReviewTableProps) {
   const [entries, setEntries] = useState(initial)
   const [rates, setRates] = useState<Record<string, Rates>>(
     Object.fromEntries(initial.map(e => [e.id, {
@@ -92,6 +94,8 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
     }]))
   )
   const [global, setGlobal] = useState<Rates>({ taxRate: 20, feeAmount: 0, umbrellaSharePct: 50, brokerSharePct: 50, expenseAmount: 0, expenseNotes: '' })
+  const [feeSource, setFeeSource] = useState(initialFeeSource)
+  const [vatRate, setVatRate] = useState(0)
   const [sendingEntry, setSendingEntry] = useState<string | null>(null)
   const [sendMessage, setSendMessage] = useState<{ entryId: string; status: 'sent' | 'no_email' | 'error'; text: string } | null>(null)
   const [sendResults, setSendResults] = useState<{ name: string; status: string; error?: string }[] | null>(null)
@@ -102,6 +106,11 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
   function gr(e: Entry) { return e.grossPay || e.totalGrossPay }
   function r(id: string): Rates { return rates[id] ?? global }
 
+  async function saveFeeSource(newSource: string) {
+    setFeeSource(newSource)
+    await updateSubmissionFeeSource(submissionId, newSource)
+  }
+
   function applyGlobal() {
     setRates(prev => Object.fromEntries(Object.keys(prev).map(id => [id, { ...prev[id], taxRate: global.taxRate, feeAmount: global.feeAmount, umbrellaSharePct: global.umbrellaSharePct, brokerSharePct: global.brokerSharePct }])))
   }
@@ -111,7 +120,7 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
   }
 
   const totals = entries.reduce((acc, e) => {
-    const g = gr(e); const c = calc(g, r(e.id))
+    const g = gr(e); const c = calc(g, r(e.id), feeSource)
     return { gross: acc.gross + g, tax: acc.tax + c.tax, fee: acc.fee + c.fee, exp: acc.exp + c.exp, net: acc.net + c.net, umbrella: acc.umbrella + c.umbrella, broker: acc.broker + c.broker }
   }, { gross: 0, tax: 0, fee: 0, exp: 0, net: 0, umbrella: 0, broker: 0 })
 
@@ -121,7 +130,7 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
       const er = r(e.id)
       return { id: e.id, taxRate: er.taxRate, feeAmount: er.feeAmount, umbrellaSharePct: er.umbrellaSharePct, brokerSharePct: er.brokerSharePct, expenseAmount: er.expenseAmount, expenseNotes: er.expenseNotes }
     })
-    await saveBulkEntryRates(updates)
+    await saveBulkEntryRates(updates, feeSource)
   }
 
   function handleSave() {
@@ -177,7 +186,7 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
     setInvoicePending(true)
     try {
       await saveCurrentRates()
-      const { invoiceId } = await generateInvoiceForSubmission(submissionId)
+      const { invoiceId } = await generateInvoiceForSubmission(submissionId, vatRate)
       router.push(`/dashboard/invoices/${invoiceId}`)
     } catch (err: any) {
       console.error(err)
@@ -189,9 +198,44 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
   return (
     <div className="space-y-5">
 
-      {/* Global defaults */}
-      <div className="rounded-lg border bg-muted/40 p-4">
-        <div className="flex flex-wrap items-end gap-4">
+      {/* Fee source toggle + global defaults */}
+      <div className="rounded-lg border bg-muted/40 p-4 space-y-4">
+        {/* Fee source selector */}
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground mb-2">Who covers the management fee?</p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => saveFeeSource('COMPANY')}
+              className={`px-4 py-2 rounded-md text-sm font-medium border transition-colors ${
+                feeSource === 'COMPANY'
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-background text-muted-foreground border-input hover:bg-muted'
+              }`}
+            >
+              Company / Client pays fee
+            </button>
+            <button
+              type="button"
+              onClick={() => saveFeeSource('WORKER')}
+              className={`px-4 py-2 rounded-md text-sm font-medium border transition-colors ${
+                feeSource === 'WORKER'
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-background text-muted-foreground border-input hover:bg-muted'
+              }`}
+            >
+              Worker pays fee
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1.5">
+            {feeSource === 'COMPANY'
+              ? 'Fee is charged to the client on the invoice. Worker net = Gross − Tax.'
+              : 'Fee is deducted from the worker\'s net pay and shown on their payslip. Net = Gross − Tax − Fee.'}
+          </p>
+        </div>
+
+        {/* Rate defaults */}
+        <div className="flex flex-wrap items-end gap-4 border-t pt-3">
           <div>
             <p className="text-xs font-medium text-muted-foreground mb-1.5">Default Tax %</p>
             <NumInput value={global.taxRate} onChange={v => setGlobal(g => ({ ...g, taxRate: v }))} className="w-16" />
@@ -208,11 +252,29 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
             <p className="text-xs font-medium text-muted-foreground mb-1.5">Broker %</p>
             <NumInput value={global.brokerSharePct} onChange={v => setGlobal(g => ({ ...g, brokerSharePct: v, umbrellaSharePct: parseFloat((100 - v).toFixed(1)) }))} className="w-16" />
           </div>
+          <div className="border-l pl-4">
+            <p className="text-xs font-medium text-muted-foreground mb-1.5">Invoice VAT %</p>
+            <div className="flex gap-1">
+              {[0, 20].map(v => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setVatRate(v)}
+                  className={`px-3 py-1.5 rounded text-xs font-medium border transition-colors ${
+                    vatRate === v
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background text-muted-foreground border-input hover:bg-muted'
+                  }`}
+                >
+                  {v === 0 ? 'No VAT' : `${v}%`}
+                </button>
+              ))}
+            </div>
+          </div>
           <Button variant="outline" size="sm" onClick={applyGlobal} disabled={isPending}>
             <RefreshCw className="mr-2 h-3 w-3" />Apply to all
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground mt-2">Fee is a fixed £ amount deducted per payslip: <strong>Net = Gross − Tax − Fee</strong>. Umbrella % + Broker % must total 100%.</p>
       </div>
 
       {/* Summary totals */}
@@ -258,7 +320,7 @@ export function PayrollReviewTable({ submissionId, entries: initial }: PayrollRe
               const email = e.worker?.email
               const g     = gr(e)
               const er    = r(e.id)
-              const c     = calc(g, er)
+              const c     = calc(g, er, feeSource)
               return (
                 <tr key={e.id} className="hover:bg-muted/30 transition-colors">
                   <td className="px-3 py-2.5">
