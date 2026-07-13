@@ -17,24 +17,24 @@ const STATE_RANK: Record<string, number> = {
   VALIDATION_FAILED:     3,
   AWAITING_REVIEW:       3,
   SPREADSHEET_GENERATED: 4,
-  SAVED_TO_SERVER:       4,
-  READY_FOR_INVOICE:     5,
-  INVOICE_SENT:          6,
-  AWAITING_PAYMENT:      6,
-  PAYMENT_RECEIVED:      7,
-  UMBRELLA_INVOICE_SENT: 8,
-  COMPLETED:             9,
+  SAVED_TO_SERVER:       5,
+  READY_FOR_INVOICE:     6,
+  INVOICE_SENT:          7,
+  AWAITING_PAYMENT:      7,
+  PAYMENT_RECEIVED:      8,
+  UMBRELLA_INVOICE_SENT: 9,
+  COMPLETED:             10,
   FAILED:                0,
 }
 
 const PIPELINE = [
-  { label: 'Timesheet\nReceived',   minRank: 1, Icon: Inbox },
-  { label: 'Data\nProcessed',       minRank: 4, Icon: Cpu },
-  { label: 'Invoice\nGenerated',    minRank: 5, Icon: FileText },
-  { label: 'Invoice\nSent',         minRank: 6, Icon: Send },
-  { label: 'Payment\nReceived',     minRank: 7, Icon: CreditCard },
-  { label: 'CSV to\nPayroll Co',    minRank: 8, Icon: FileSpreadsheet },
-  { label: 'Payslips\nSent',        minRank: 9, Icon: Users },
+  { label: 'Timesheet\nReceived',   minRank: 1,  Icon: Inbox },
+  { label: 'Data\nProcessed',       minRank: 4,  Icon: Cpu },
+  { label: 'Payslips\nSent',        minRank: 5,  Icon: Users },
+  { label: 'Invoice\nGenerated',    minRank: 6,  Icon: FileText },
+  { label: 'Invoice\nSent',         minRank: 7,  Icon: Send },
+  { label: 'Payment\nReceived',     minRank: 8,  Icon: CreditCard },
+  { label: 'CSV to\nPayroll Co',    minRank: 9,  Icon: FileSpreadsheet },
 ]
 
 function fmt(n: number) {
@@ -140,8 +140,8 @@ export default async function WorkflowPage({ searchParams }: WorkflowPageProps) 
 
             const maxRank = (() => {
               if (isFailed)    return 0
-              if (!hasInvoice) return Math.min(rawMaxRank, 4)
-              if (!hasPaid)    return Math.min(rawMaxRank, 6)
+              if (!hasInvoice) return Math.min(rawMaxRank, 5)
+              if (!hasPaid)    return Math.min(rawMaxRank, 7)
               return rawMaxRank
             })()
 
