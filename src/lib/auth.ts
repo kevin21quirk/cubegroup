@@ -90,10 +90,14 @@ export async function getSession(): Promise<User | null> {
     if (user.role === 'STAFF' && user.id) {
       const dbUser = await prisma.user.findUnique({
         where:  { id: user.id },
-        select: { isActive: true, staffCompanies: { select: { id: true } } },
+        select: { isActive: true, companyId: true, staffCompanies: { select: { id: true } } },
       })
       if (!dbUser || !dbUser.isActive) return null
       user.assignedCompanyIds = dbUser.staffCompanies.map(c => c.id)
+      // Fall back to the user's primary companyId if no staffCompanies are assigned
+      if (user.assignedCompanyIds.length === 0 && dbUser.companyId) {
+        user.assignedCompanyIds = [dbUser.companyId]
+      }
     }
 
     return user

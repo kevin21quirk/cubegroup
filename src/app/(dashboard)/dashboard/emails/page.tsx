@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Mail, Inbox, Archive, Settings, AlertCircle, RefreshCw, Eye, Paperclip, CheckCircle, Clock, XCircle } from 'lucide-react'
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
+import { getSession } from '@/lib/auth'
 import { formatDistanceToNow } from 'date-fns'
 import { EmailRetryButton } from '@/components/emails/email-retry-button'
 import { EmailDeleteButton } from '@/components/emails/email-delete-button'
@@ -24,8 +25,17 @@ const statusConfig: Record<string, { label: string; color: string; icon: any }> 
 }
 
 export default async function EmailsPage() {
+  const session = await getSession()
+  const isStaff = session?.role === 'STAFF'
+  const assignedIds = session?.assignedCompanyIds ?? []
+  // For staff: only emails linked to their company's payroll submissions
+  const emailFilter = isStaff
+    ? { payrollSubmission: { companyId: { in: assignedIds } } }
+    : {}
+
   const [emails, stats] = await Promise.all([
     prisma.emailImport.findMany({
+      where: emailFilter,
       orderBy: { receivedAt: 'desc' },
       take: 100,
       include: {
@@ -35,6 +45,7 @@ export default async function EmailsPage() {
     }),
     prisma.emailImport.groupBy({
       by: ['processingStatus'],
+      where: emailFilter,
       _count: true,
     }),
   ])
