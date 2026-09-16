@@ -9,6 +9,7 @@ import { getSession } from '@/lib/auth'
 import { formatDate } from '@/lib/utils'
 import ImportDialog from '@/components/import/ImportDialog'
 import { WorkersCompanyFilter } from '@/components/workers/WorkersCompanyFilter'
+import { SyncWorkersButton } from '@/components/workers/SyncWorkersButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -155,6 +156,7 @@ export default async function WorkersPage({
           {isSuperAdmin && (
             <WorkersCompanyFilter companies={companies} selectedId={effectiveCompanyId} />
           )}
+          {isSuperAdmin && <SyncWorkersButton />}
           <ImportDialog entity="workers" />
           <Link href={`/dashboard/workers/new${effectiveCompanyId ? `?companyId=${effectiveCompanyId}` : ''}`}>
             <Button>

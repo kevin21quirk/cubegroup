@@ -5,6 +5,59 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 
+export async function syncWorkersFromPayroll(): Promise<{ synced: number }> {
+  const admin = await prisma.user.findFirst({ where: { role: 'SUPER_ADMIN' } })
+    ?? await prisma.user.findFirst()
+  if (!admin) return { synced: 0 }
+
+  const suspense = await prisma.company.findFirst({ where: { name: 'Suspense' } })
+    ?? await prisma.company.create({ data: { name: 'Suspense', createdById: admin.id } })
+
+  // Get all distinct worker names from payroll entries
+  const entries = await prisma.payrollEntry.findMany({
+    select: { firstName: true, lastName: true, workerName: true, employeeId: true },
+  })
+
+  // Deduplicate by resolved name
+  const seen = new Set<string>()
+  let synced = 0
+
+  for (const entry of entries) {
+    let firstName = entry.firstName?.trim() || ''
+    let lastName  = entry.lastName?.trim()  || ''
+
+    if ((!firstName || !lastName) && entry.workerName) {
+      const parts = entry.workerName.trim().split(/\s+/)
+      firstName = firstName || parts[0] || ''
+      lastName  = lastName  || (parts.length > 1 ? parts.slice(1).join(' ') : '(Unknown)')
+    }
+
+    if (!firstName) continue
+    if (!lastName) lastName = '(Unknown)'
+
+    const key = `${firstName.toLowerCase()}|${lastName.toLowerCase()}`
+    if (seen.has(key)) continue
+    seen.add(key)
+
+    // Check if a Worker record already exists anywhere
+    const existing = await prisma.worker.findFirst({
+      where: {
+        firstName: { equals: firstName, mode: 'insensitive' },
+        lastName:  { equals: lastName,  mode: 'insensitive' },
+      },
+    })
+    if (existing) continue
+
+    await prisma.worker.create({
+      data: { companyId: suspense.id, firstName, lastName, isActive: true },
+    })
+    synced++
+  }
+
+  revalidatePath('/dashboard/workers')
+  return { synced }
+}
+
 function str(fd: FormData, key: string): string | undefined {
   const v = fd.get(key) as string | null
   return v && v.trim() !== '' ? v.trim() : undefined
