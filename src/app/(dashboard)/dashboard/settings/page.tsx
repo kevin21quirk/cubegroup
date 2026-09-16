@@ -216,12 +216,12 @@ export default async function SettingsPage({ searchParams }: Props) {
             {/* Connect / Reconnect + diagnostics */}
             <div className="mt-4 flex items-center gap-3 flex-wrap">
               {gmailOAuthReady ? (
-                <Link href="/api/auth/google">
+                <a href="/api/auth/google">
                   <Button variant={gmailConnected ? 'outline' : 'default'} size="sm">
                     <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
                     {gmailConnected ? 'Reconnect Gmail' : 'Connect Gmail Account'}
                   </Button>
-                </Link>
+                </a>
               ) : (
                 <p className="text-sm text-yellow-700">
                   Set <code className="font-mono text-xs">GOOGLE_CLIENT_ID</code> and{' '}
