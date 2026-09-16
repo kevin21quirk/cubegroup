@@ -5,6 +5,7 @@ import { Plus, Users, Mail, Building2, Briefcase, CreditCard, Pencil, AlertTrian
 import Link from 'next/link'
 import { getWorkers } from '@/app/actions/workers'
 import { getCompanies } from '@/app/actions/companies'
+import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/auth'
 import { formatDate } from '@/lib/utils'
 import ImportDialog from '@/components/import/ImportDialog'
@@ -69,24 +70,37 @@ function WorkerRow({ worker }: { worker: any }) {
   )
 }
 
-function SuspenseSection({ workers }: { workers: any[] }) {
+function SuspenseSection({ workers, unmatched }: { workers: any[]; unmatched: { firstName: string; lastName: string }[] }) {
+  const total = workers.length + unmatched.length
+  if (total === 0) return null
   return (
     <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950 dark:border-amber-800">
       <CardHeader className="pb-3">
         <div className="flex items-center gap-2">
           <AlertTriangle className="h-5 w-5 text-amber-600" />
           <CardTitle className="text-amber-800 dark:text-amber-200">
-            Suspense — {workers.length} worker{workers.length !== 1 ? 's' : ''} awaiting assignment
+            Suspense — {total} worker{total !== 1 ? 's' : ''} awaiting assignment
           </CardTitle>
         </div>
         <CardDescription className="text-amber-700 dark:text-amber-300">
-          These workers were imported but could not be matched to a company. Click Edit to assign them.
+          These workers were imported but could not be matched to a company. Edit to assign them.
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-2">
-          {workers.map(w => <WorkerRow key={w.id} worker={w} />)}
-        </div>
+      <CardContent className="space-y-2">
+        {workers.map(w => <WorkerRow key={w.id} worker={w} />)}
+        {unmatched.map(u => (
+          <div key={`${u.firstName}|${u.lastName}`} className="flex items-center justify-between p-4 rounded-lg border border-amber-200 bg-white dark:bg-amber-900">
+            <div className="flex items-center gap-4">
+              <div className="p-2 bg-amber-100 dark:bg-amber-800 rounded-lg">
+                <Users className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <p className="font-medium">{u.firstName} {u.lastName !== '(Unknown)' ? u.lastName : ''}</p>
+                <p className="text-xs text-amber-600 mt-0.5">No Worker record — click "Sync from Payroll" to make editable</p>
+              </div>
+            </div>
+          </div>
+        ))}
       </CardContent>
     </Card>
   )
@@ -114,6 +128,33 @@ export default async function WorkersPage({
   const suspenseCompany = companies.find(c => c.name === 'Suspense')
   const suspenseWorkers = suspenseCompany && isSuperAdmin ? await getWorkers(suspenseCompany.id) : []
 
+  // Also find PayrollEntry workers that have NO Worker record yet (e.g. Brad)
+  let unmatchedEntries: { firstName: string; lastName: string }[] = []
+  if (isSuperAdmin) {
+    const allEntries = await prisma.payrollEntry.findMany({
+      select: { firstName: true, lastName: true, workerName: true },
+    })
+    const allWorkers = await prisma.worker.findMany({ select: { firstName: true, lastName: true } })
+    const workerSet = new Set(allWorkers.map(w => `${w.firstName.toLowerCase()}|${w.lastName.toLowerCase()}`))
+
+    const seen = new Set<string>()
+    for (const e of allEntries) {
+      let fn = e.firstName?.trim() || ''
+      let ln = e.lastName?.trim() || ''
+      if ((!fn || !ln) && e.workerName) {
+        const parts = e.workerName.trim().split(/\s+/)
+        fn = fn || parts[0] || ''
+        ln = ln || (parts.length > 1 ? parts.slice(1).join(' ') : '(Unknown)')
+      }
+      if (!fn) continue
+      if (!ln) ln = '(Unknown)'
+      const key = `${fn.toLowerCase()}|${ln.toLowerCase()}`
+      if (seen.has(key) || workerSet.has(key)) continue
+      seen.add(key)
+      unmatchedEntries.push({ firstName: fn, lastName: ln })
+    }
+  }
+
   // If no company context at all, prompt selection (but still show suspense)
   if (!effectiveCompanyId) {
     return (
@@ -122,7 +163,7 @@ export default async function WorkersPage({
           <h1 className="text-3xl font-bold tracking-tight">Workers</h1>
           <p className="text-muted-foreground">Select a company to view its workers</p>
         </div>
-        {suspenseWorkers.length > 0 && <SuspenseSection workers={suspenseWorkers} />}
+        <SuspenseSection workers={suspenseWorkers} unmatched={unmatchedEntries} />
         <Card className="max-w-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -200,6 +241,10 @@ export default async function WorkersPage({
         </Card>
       </div>
 
+      {effectiveCompanyId !== suspenseCompany?.id && (
+        <SuspenseSection workers={suspenseWorkers} unmatched={unmatchedEntries} />
+      )}
+
       {workers.length === 0 ? (
         <Card>
           <CardHeader>
@@ -221,24 +266,19 @@ export default async function WorkersPage({
           </CardContent>
         </Card>
       ) : (
-        <>
-          {suspenseWorkers.length > 0 && effectiveCompanyId !== suspenseCompany?.id && (
-            <SuspenseSection workers={suspenseWorkers} />
-          )}
-          <Card>
-            <CardHeader>
-              <CardTitle>Worker Directory</CardTitle>
-              <CardDescription>{workers.length} registered workers</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {workers.map((worker) => (
-                  <WorkerRow key={worker.id} worker={worker} />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </>
+        <Card>
+          <CardHeader>
+            <CardTitle>Worker Directory</CardTitle>
+            <CardDescription>{workers.length} registered workers</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {workers.map((worker) => (
+                <WorkerRow key={worker.id} worker={worker} />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   )

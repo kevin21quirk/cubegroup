@@ -223,10 +223,12 @@ export class EmailProcessingService {
       })
       accountingExported = accountingResult.success
 
-      // ── Step 10: Complete ──────────────────────────────────────────────────
+      // ── Step 10: Mark as data-processed (spreadsheet generated/uploaded) ────
+      // Do NOT set COMPLETED here — that would make "Payslips Sent" appear green
+      // prematurely. COMPLETED is only set after manual payslip sending.
       await prisma.payrollSubmission.update({
         where: { id: submission.id },
-        data: { workflowState: 'COMPLETED', processedAt: new Date() },
+        data: { workflowState: 'SPREADSHEET_GENERATED', processedAt: new Date() },
       })
       await prisma.emailImport.update({
         where: { id: emailImportId },
