@@ -81,7 +81,7 @@ export default async function SettingsPage({ searchParams }: Props) {
   const delivType  = process.env.FILE_DELIVERY_TYPE
   const webhookSec = process.env.WEBHOOK_SECRET
   const cronSec    = process.env.CRON_SECRET
-  const model      = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6'
+  const model      = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5'
 
   // Read Gmail connection state from DB
   let gmailConnectedEmail: string | null = null
@@ -168,7 +168,7 @@ export default async function SettingsPage({ searchParams }: Props) {
           </CardHeader>
           <CardContent>
             <EnvRow label="API Key" envKey="ANTHROPIC_API_KEY" value={anthropic} hint="Get from console.anthropic.com" />
-            <EnvRow label="Model override" envKey="ANTHROPIC_MODEL" value={process.env.ANTHROPIC_MODEL} hint="Default: claude-sonnet-4-6" />
+            <EnvLabel label="Model override" value={process.env.ANTHROPIC_MODEL || 'Not set (using default)'} hint="ANTHROPIC_MODEL — Default: claude-sonnet-4-5" />
           </CardContent>
         </Card>
 
