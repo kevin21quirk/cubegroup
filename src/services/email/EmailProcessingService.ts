@@ -126,14 +126,12 @@ export class EmailProcessingService {
         else if (result.action === 'updated') workersUpdated++
       }
 
-      // From payroll entries (timesheets with worker names only)
-      if (extraction.workerData.length === 0 && extraction.payrollEntries.length > 0) {
-        for (const entry of extraction.payrollEntries) {
-          if (entry.firstName || entry.workerName) {
-            const result = await this.workerUpsert.upsertFromPayrollEntry(company.id, entry)
-            if (result.action === 'created') workersCreated++
-            else if (result.action === 'updated') workersUpdated++
-          }
+      // Always upsert workers from payroll entries so every person on a timesheet gets a Worker record
+      for (const entry of extraction.payrollEntries) {
+        if (entry.firstName || entry.lastName || entry.workerName) {
+          const result = await this.workerUpsert.upsertFromPayrollEntry(company.id, entry)
+          if (result.action === 'created') workersCreated++
+          else if (result.action === 'updated') workersUpdated++
         }
       }
 

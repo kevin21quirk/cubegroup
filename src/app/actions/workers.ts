@@ -171,9 +171,12 @@ export async function updateWorker(id: string, formData: FormData) {
   const lastName = formData.get('lastName') as string
   if (!firstName || !lastName) throw new Error('First name and last name are required')
 
+  const newCompanyId = str(formData, 'companyId')
+
   await prisma.worker.update({
     where: { id },
     data: {
+      ...(newCompanyId ? { companyId: newCompanyId } : {}),
       title:                    str(formData, 'title'),
       firstName,
       middleNames:              str(formData, 'middleNames'),
@@ -246,6 +249,7 @@ export async function updateWorker(id: string, formData: FormData) {
 
   revalidatePath('/dashboard/workers')
   revalidatePath(`/dashboard/workers/${id}`)
+  redirect(`/dashboard/workers/${id}`)
 }
 
 export async function deleteWorker(id: string) {

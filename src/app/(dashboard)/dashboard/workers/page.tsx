@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Users, Mail, Building2, Briefcase, CreditCard } from 'lucide-react'
+import { Plus, Users, Mail, Building2, Briefcase, CreditCard, Pencil, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 import { getWorkers } from '@/app/actions/workers'
 import { getCompanies } from '@/app/actions/companies'
@@ -11,6 +11,85 @@ import ImportDialog from '@/components/import/ImportDialog'
 import { WorkersCompanyFilter } from '@/components/workers/WorkersCompanyFilter'
 
 export const dynamic = 'force-dynamic'
+
+function WorkerRow({ worker }: { worker: any }) {
+  return (
+    <div className="flex items-center justify-between p-4 rounded-lg border hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+      <Link href={`/dashboard/workers/${worker.id}`} className="flex items-center gap-4 flex-1 min-w-0">
+        <div className="p-2 bg-primary/10 rounded-lg shrink-0">
+          <Users className="h-5 w-5 text-primary" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="font-medium">{worker.firstName} {worker.lastName}</p>
+            <Badge variant={worker.isActive ? 'default' : 'secondary'} className="text-xs">
+              {worker.isActive ? 'Active' : 'Inactive'}
+            </Badge>
+            {worker.cisStatus && (
+              <Badge variant="outline" className="text-xs">CIS: {worker.cisStatus}</Badge>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 mt-1 text-xs text-muted-foreground">
+            {worker.nationalInsurance && (
+              <div className="flex items-center gap-1">
+                <CreditCard className="h-3 w-3" />
+                <span className="font-mono">{worker.nationalInsurance}</span>
+              </div>
+            )}
+            {worker.jobDescription && (
+              <div className="flex items-center gap-1">
+                <Briefcase className="h-3 w-3" />
+                <span className="truncate max-w-[140px]">{worker.jobDescription}</span>
+              </div>
+            )}
+            {worker.email ? (
+              <div className="flex items-center gap-1">
+                <Mail className="h-3 w-3" />
+                <span className="truncate max-w-[160px]">{worker.email}</span>
+              </div>
+            ) : (
+              <span className="text-amber-500 font-medium">No email</span>
+            )}
+          </div>
+        </div>
+      </Link>
+      <div className="flex items-center gap-3 shrink-0 ml-4">
+        <div className="text-right">
+          <p className="text-sm font-medium">{worker._count.payrollEntries} entries</p>
+          <p className="text-xs text-muted-foreground">Added {formatDate(worker.createdAt)}</p>
+        </div>
+        <Link href={`/dashboard/workers/${worker.id}/edit`}>
+          <Button variant="ghost" size="icon" title="Edit worker">
+            <Pencil className="h-4 w-4" />
+          </Button>
+        </Link>
+      </div>
+    </div>
+  )
+}
+
+function SuspenseSection({ workers }: { workers: any[] }) {
+  return (
+    <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950 dark:border-amber-800">
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="h-5 w-5 text-amber-600" />
+          <CardTitle className="text-amber-800 dark:text-amber-200">
+            Suspense — {workers.length} worker{workers.length !== 1 ? 's' : ''} awaiting assignment
+          </CardTitle>
+        </div>
+        <CardDescription className="text-amber-700 dark:text-amber-300">
+          These workers were imported but could not be matched to a company. Click Edit to assign them.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+          {workers.map(w => <WorkerRow key={w.id} worker={w} />)}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
 export default async function WorkersPage({
   searchParams,
@@ -30,7 +109,11 @@ export default async function WorkersPage({
     ? (companies.find(c => c.id === effectiveCompanyId) ?? { id: effectiveCompanyId, name: session?.companyId ? 'Your Company' : '' })
     : null
 
-  // If no company context at all, prompt selection
+  // Always show Suspense workers so they can be reassigned
+  const suspenseCompany = companies.find(c => c.name === 'Suspense')
+  const suspenseWorkers = suspenseCompany && isSuperAdmin ? await getWorkers(suspenseCompany.id) : []
+
+  // If no company context at all, prompt selection (but still show suspense)
   if (!effectiveCompanyId) {
     return (
       <div className="space-y-6">
@@ -38,6 +121,7 @@ export default async function WorkersPage({
           <h1 className="text-3xl font-bold tracking-tight">Workers</h1>
           <p className="text-muted-foreground">Select a company to view its workers</p>
         </div>
+        {suspenseWorkers.length > 0 && <SuspenseSection workers={suspenseWorkers} />}
         <Card className="max-w-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -135,65 +219,24 @@ export default async function WorkersPage({
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Worker Directory</CardTitle>
-            <CardDescription>{workers.length} registered workers</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {workers.map((worker) => (
-                <Link key={worker.id} href={`/dashboard/workers/${worker.id}`}>
-                  <div className="flex items-center justify-between p-4 rounded-lg border hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer">
-                    <div className="flex items-center gap-4 flex-1 min-w-0">
-                      <div className="p-2 bg-primary/10 rounded-lg shrink-0">
-                        <Users className="h-5 w-5 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-medium">{worker.firstName} {worker.lastName}</p>
-                          <Badge variant={worker.isActive ? 'default' : 'secondary'} className="text-xs">
-                            {worker.isActive ? 'Active' : 'Inactive'}
-                          </Badge>
-                          {(worker as any).cisStatus && (
-                            <Badge variant="outline" className="text-xs">CIS: {(worker as any).cisStatus}</Badge>
-                          )}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 mt-1 text-xs text-muted-foreground">
-                          {(worker as any).nationalInsurance && (
-                            <div className="flex items-center gap-1">
-                              <CreditCard className="h-3 w-3" />
-                              <span className="font-mono">{(worker as any).nationalInsurance}</span>
-                            </div>
-                          )}
-                          {(worker as any).jobDescription && (
-                            <div className="flex items-center gap-1">
-                              <Briefcase className="h-3 w-3" />
-                              <span className="truncate max-w-[140px]">{(worker as any).jobDescription}</span>
-                            </div>
-                          )}
-                          {worker.email && (
-                            <div className="flex items-center gap-1">
-                              <Mail className="h-3 w-3" />
-                              <span className="truncate max-w-[160px]">{worker.email}</span>
-                            </div>
-                          )}
-                          {(worker as any).agency && (
-                            <span className="text-muted-foreground/70">via {(worker as any).agency}</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0 ml-4">
-                      <p className="text-sm font-medium">{worker._count.payrollEntries} entries</p>
-                      <p className="text-xs text-muted-foreground">Added {formatDate(worker.createdAt)}</p>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <>
+          {suspenseWorkers.length > 0 && effectiveCompanyId !== suspenseCompany?.id && (
+            <SuspenseSection workers={suspenseWorkers} />
+          )}
+          <Card>
+            <CardHeader>
+              <CardTitle>Worker Directory</CardTitle>
+              <CardDescription>{workers.length} registered workers</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {workers.map((worker) => (
+                  <WorkerRow key={worker.id} worker={worker} />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </>
       )}
     </div>
   )

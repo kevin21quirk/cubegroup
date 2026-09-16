@@ -73,9 +73,24 @@ export class WorkerUpsertService {
     companyId: string,
     entry: NormalizedPayrollData
   ): Promise<UpsertResult> {
+    let firstName = entry.firstName?.trim() || ''
+    let lastName  = entry.lastName?.trim()  || ''
+
+    // Parse workerName if first/last not individually available
+    if ((!firstName || !lastName) && entry.workerName) {
+      const parts = entry.workerName.trim().split(/\s+/)
+      if (parts.length >= 2) {
+        firstName = firstName || parts[0]
+        lastName  = lastName  || parts.slice(1).join(' ')
+      } else if (parts.length === 1) {
+        firstName = firstName || parts[0]
+        lastName  = lastName  || '(Unknown)'
+      }
+    }
+
     const workerData: WorkerExtractionData = {
-      firstName:         entry.firstName,
-      lastName:          entry.lastName,
+      firstName,
+      lastName,
       nationalInsurance: entry.niNumber,
       startDate:         entry.startDate,
       jobDescription:    entry.jobTitle,

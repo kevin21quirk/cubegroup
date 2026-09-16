@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getWorker, updateWorker } from '@/app/actions/workers'
+import { getCompanies } from '@/app/actions/companies'
 
 export const dynamic = 'force-dynamic'
 
@@ -60,7 +61,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default async function EditWorkerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const worker = await getWorker(id)
+  const [worker, companies] = await Promise.all([getWorker(id), getCompanies()])
   if (!worker) notFound()
 
   const w = worker as any
@@ -85,10 +86,12 @@ export default async function EditWorkerPage({ params }: { params: Promise<{ id:
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Company</label>
-                <div className="flex h-10 items-center px-3 rounded-md border bg-muted text-sm text-muted-foreground">
-                  {worker.company.name}
-                </div>
+                <label htmlFor="companyId" className="text-sm font-medium">Company</label>
+                <select id="companyId" name="companyId" className={selectClass} defaultValue={worker.companyId}>
+                  {companies.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
               </div>
               <SelectField label="Contractor Type" name="contractorType" options={['PAYE', 'CIS', 'Umbrella']} defaultValue={w.contractorType} />
               <SelectField label="Product" name="product" options={['PAYE', 'CIS', 'Umbrella', 'Self-Employed']} defaultValue={w.product} />
