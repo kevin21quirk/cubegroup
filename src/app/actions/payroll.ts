@@ -188,17 +188,25 @@ export async function getPayrollSubmission(id: string) {
   // For entries imported from CSV (workerId = null), match to a worker by first+last name
   const unlinked = submission.payrollEntries.filter(e => !e.worker)
   if (unlinked.length > 0) {
+    // Search globally — worker may have been moved to a different company after import
+    const firstNames = [...new Set(unlinked.map(e => e.firstName).filter(Boolean))] as string[]
     const companyWorkers = await prisma.worker.findMany({
-      where: { companyId: submission.companyId },
+      where: firstNames.length > 0 ? { firstName: { in: firstNames, mode: 'insensitive' } } : {},
       select: { id: true, firstName: true, lastName: true, email: true },
     })
 
     const patched = submission.payrollEntries.map(entry => {
       if (entry.worker) return entry
-      const match = companyWorkers.find(w =>
-        (w.firstName ?? '').toLowerCase() === (entry.firstName ?? '').toLowerCase() &&
-        (w.lastName  ?? '').toLowerCase() === (entry.lastName  ?? '').toLowerCase()
-      )
+      const fn = (entry.firstName ?? '').toLowerCase()
+      const ln = (entry.lastName ?? '').toLowerCase()
+      const match = companyWorkers.find(w => {
+        const wfn = (w.firstName ?? '').toLowerCase()
+        const wln = (w.lastName ?? '').toLowerCase()
+        if (!fn) return false
+        if (fn !== wfn) return false
+        // Accept if lastnames match, or entry has no lastname, or worker has placeholder
+        return !ln || ln === wln || wln === '(unknown)'
+      })
       return match ? { ...entry, workerId: match.id, worker: match as any } : entry
     })
 
@@ -366,17 +374,19 @@ export async function sendPayslipsForSubmission(submissionId: string) {
 
 async function resolveWorkerEmail(entry: { workerId: string | null; worker: { email: string | null } | null; firstName: string | null; lastName: string | null }, companyId: string): Promise<string | null> {
   if (entry.worker?.email) return entry.worker.email
-  // Fallback: match by name within the company (CSV imports have no workerId)
-  const match = await prisma.worker.findFirst({
-    where: {
-      companyId,
-      firstName: { equals: entry.firstName ?? '', mode: 'insensitive' },
-      lastName:  { equals: entry.lastName  ?? '', mode: 'insensitive' },
-    },
-    select: { id: true, email: true },
+  const fn = entry.firstName?.trim() || ''
+  const ln = entry.lastName?.trim()  || ''
+  if (!fn) return null
+  // Search globally — worker may have been moved to a different company after import
+  const candidates = await prisma.worker.findMany({
+    where: { firstName: { equals: fn, mode: 'insensitive' } },
+    select: { id: true, email: true, lastName: true },
+  })
+  const match = candidates.find(w => {
+    const wln = (w.lastName ?? '').toLowerCase()
+    return !ln || ln.toLowerCase() === wln || wln === '(unknown)'
   })
   if (match) {
-    // Persist the link so future direct fetches work
     await prisma.payrollEntry.update({ where: { id: (entry as any).id }, data: { workerId: match.id } }).catch(() => {})
     return match.email
   }
