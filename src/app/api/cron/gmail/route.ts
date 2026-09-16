@@ -97,6 +97,19 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // ── 2c. Retry emails stuck in PENDING for >10 minutes (ingested but never processed) ──
+    const pendingCutoff = new Date(Date.now() - 10 * 60 * 1000)
+    const pendingEmails = await prisma.emailImport.findMany({
+      where: { processingStatus: 'PENDING', createdAt: { lt: pendingCutoff } },
+      take: 3,
+    })
+    for (const pending of pendingEmails) {
+      console.log(`[cron/gmail] Processing stuck-pending email ${pending.id}`)
+      await processingService.processEmail(pending.id).catch(err =>
+        console.error(`[cron/gmail] Pending retry failed for ${pending.id}:`, err)
+      )
+    }
+
     if (messageIds.length === 0) {
       return NextResponse.json({
         success: true,

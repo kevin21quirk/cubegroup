@@ -417,13 +417,20 @@ export class EmailProcessingService {
       }
     }
 
-    // 4. Create a new company only if we have a real name
-    const nameToCreate = !isGenericName ? companyName
-      : fromEmail ? fromEmail.split('@')[0].replace(/[._+-]/g, ' ').trim() : 'Unknown Company'
+    // 4. Fall back to Suspense for unidentifiable senders
     const creator = await prisma.user.findFirst({ where: { role: 'SUPER_ADMIN' } })
       || await prisma.user.findFirst()
     if (!creator) throw new Error('No users found in database — add at least one user before email processing can create companies')
-    return prisma.company.create({ data: { name: nameToCreate, createdById: creator.id } })
+
+    if (!isGenericName) {
+      // Real extracted company name that doesn't exist yet — create it
+      return prisma.company.create({ data: { name: companyName, createdById: creator.id } })
+    }
+
+    // No identifiable company — route to Suspense holding company
+    const suspense = await prisma.company.findFirst({ where: { name: 'Suspense' } })
+      ?? await prisma.company.create({ data: { name: 'Suspense', createdById: creator.id } })
+    return suspense
   }
 
   // ── Create PayrollSubmission + PayrollEntries ─────────────────────────────
